@@ -1,0 +1,29 @@
+{
+  "name": "@aifi/worker",
+  "version": "1.0.0",
+  "description": "AI File Intelligence - Background Worker Service",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "lint": "eslint src/ --ext .js"
+  },
+  "dependencies": {
+    "bullmq": "^5.1.1",
+    "dotenv": "^16.3.1",
+    "zod": "^3.22.4",
+    "pg": "^8.11.3",
+    "redis": "^4.6.12",
+    "@aws-sdk/client-s3": "^3.490.0",
+    "openai": "^4.24.1",
+    "pdf-parse": "^1.1.1",
+    "mammoth": "^1.6.0",
+    "winston": "^3.11.0",
+    "tiktoken": "^1.0.13",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

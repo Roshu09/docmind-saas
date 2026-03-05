@@ -1,0 +1,29 @@
+{
+  "name": "ai-file-intelligence",
+  "version": "1.0.0",
+  "description": "Multi-tenant AI-powered File Intelligence SaaS Platform",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/worker",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:worker": "npm run dev --workspace=apps/worker",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:worker\" \"npm run dev:web\"",
+    "docker:up": "docker-compose -f infra/docker/docker-compose.yml up -d",
+    "docker:down": "docker-compose -f infra/docker/docker-compose.yml down",
+    "docker:logs": "docker-compose -f infra/docker/docker-compose.yml logs -f",
+    "docker:reset": "docker-compose -f infra/docker/docker-compose.yml down -v",
+    "migrate:up": "npm run migrate:up --workspace=apps/api",
+    "migrate:down": "npm run migrate:down --workspace=apps/api"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

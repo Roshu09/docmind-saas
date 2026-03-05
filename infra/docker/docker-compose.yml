@@ -1,0 +1,99 @@
+version: '3.9'
+
+# ============================================================
+# AI File Intelligence - Local Development Stack
+# Run: docker-compose up -d
+# Stop: docker-compose down
+# Reset (wipe data): docker-compose down -v
+# ============================================================
+
+services:
+
+  # ── PostgreSQL with pgvector extension ──────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: aifi_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ai_file_intelligence
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: yourpassword123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d  # runs on first start
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ai_file_intelligence"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aifi_network
+
+  # ── Redis (cache + job queue) ────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: aifi_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aifi_network
+
+  # ── pgAdmin (PostgreSQL GUI - dev only) ──────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: aifi_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@localhost.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - aifi_network
+
+  # ── Redis Commander (Redis GUI - dev only) ───────────────────
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: aifi_redis_ui
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - aifi_network
+
+# ── Named volumes (data persists between restarts) ────────────
+volumes:
+  postgres_data:
+    name: aifi_postgres_data
+  redis_data:
+    name: aifi_redis_data
+  pgadmin_data:
+    name: aifi_pgadmin_data
+
+# ── Internal network ─────────────────────────────────────────
+networks:
+  aifi_network:
+    name: aifi_network
+    driver: bridge
