@@ -1,25 +1,31 @@
-// src/modules/rag/rag.controller.js
-import { z } from 'zod';
-import { ragQuery, ragQueryStream } from './rag.service.js';
-import { ValidationError } from '../../middlewares/errorHandler.js';
-
-const ragSchema = z.object({
-  question: z.string().min(5, 'Question must be at least 5 characters').max(1000),
-  documentIds: z.array(z.string().uuid()).optional(),
-  limit: z.number().int().min(1).max(10).default(5).optional(),
-  stream: z.boolean().default(false).optional(),
-});
+import { ragQuery, summarizeDocument, generateQA, multiDocQuery } from './rag.service.js';
+import { logger } from '../../utils/logger.js';
 
 export const ragController = async (req, res) => {
-  const parsed = ragSchema.safeParse(req.body);
-  if (!parsed.success) throw new ValidationError('Invalid RAG request', parsed.error.errors);
+  const { question, documentIds, limit } = req.body;
+  if (!question?.trim()) return res.status(400).json({ success: false, message: 'Question is required' });
+  const result = await ragQuery(req.user.orgId, question, { documentIds, limit });
+  res.json({ success: true, data: result });
+};
 
-  const { question, documentIds, limit, stream } = parsed.data;
+export const multiDocController = async (req, res) => {
+  const { question, documentIds = [], limit } = req.body;
+  if (!question?.trim()) return res.status(400).json({ success: false, message: 'Question is required' });
+  const result = await multiDocQuery(req.user.orgId, question, documentIds, { limit });
+  res.json({ success: true, data: result });
+};
 
-  if (stream) {
-    await ragQueryStream(req.user.orgId, question, res, { documentIds, limit: limit || 5 });
-  } else {
-    const result = await ragQuery(req.user.orgId, question, { documentIds, limit: limit || 5 });
-    res.json({ success: true, data: result });
-  }
+export const summarizeController = async (req, res) => {
+  const { documentId } = req.params;
+  logger.info('Summarize request', { documentId, orgId: req.user.orgId });
+  const result = await summarizeDocument(req.user.orgId, documentId);
+  res.json({ success: true, data: result });
+};
+
+export const generateQAController = async (req, res) => {
+  const { documentId } = req.params;
+  const { count = 5 } = req.body;
+  logger.info('Generate Q&A request', { documentId, count });
+  const result = await generateQA(req.user.orgId, documentId, count);
+  res.json({ success: true, data: result });
 };

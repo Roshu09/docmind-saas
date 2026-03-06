@@ -1,11 +1,10 @@
-// src/modules/rag/rag.routes.js
 import { Router } from 'express';
 import { authenticate } from '../../middlewares/auth.js';
-import { ragController } from './rag.controller.js';
-
+import { ragController, summarizeController, generateQAController, multiDocController } from './rag.controller.js';
 const router = Router();
 router.use(authenticate);
-
 router.post('/query', ragController);
-
+router.post('/multi-query', multiDocController);
+router.post('/summarize/:documentId', summarizeController);
+router.post('/generate-qa/:documentId', generateQAController);
 export default router;

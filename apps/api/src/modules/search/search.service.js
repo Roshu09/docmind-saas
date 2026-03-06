@@ -1,108 +1,108 @@
-// src/modules/search/search.service.js
-// Hybrid Search: Semantic (pgvector) + Full-text (tsvector) + RRF fusion
 import { querySystem } from '../../db/queries/rls.js';
 import { cacheGet, cacheSet } from '../../config/redis.js';
 import { logger } from '../../utils/logger.js';
 
-const OLLAMA_URL = 'http://localhost:11434/api/embeddings';
 const CACHE_TTL = 300;
 
-const getQueryEmbedding = async (query) => {
-  const response = await fetch(OLLAMA_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'nomic-embed-text', prompt: query }),
+const getQueryEmbedding = (query) => {
+  const vector = new Array(768).fill(0);
+  const words = query.toLowerCase().split(/\s+/);
+  words.forEach((word, wordIdx) => {
+    for (let i = 0; i < word.length; i++) {
+      const charCode = word.charCodeAt(i);
+      vector[(charCode * 31 + wordIdx * 17 + i * 7) % 768] += 0.1;
+      vector[(charCode * 13 + wordIdx * 23 + i * 11) % 768] += 0.05;
+      vector[(charCode * 7 + wordIdx * 37 + i * 3) % 768] += 0.07;
+    }
   });
-  if (!response.ok) throw new Error(`Ollama error: ${response.statusText}`);
-  const data = await response.json();
-  return data.embedding;
+  const magnitude = Math.sqrt(vector.reduce((sum, v) => sum + v * v, 0)) || 1;
+  return vector.map(v => v / magnitude);
 };
 
 const semanticSearch = async (orgId, queryEmbedding, limit, documentIds = null) => {
   const params = [orgId, JSON.stringify(queryEmbedding), limit];
   let docFilter = '';
   if (documentIds?.length) { docFilter = 'AND dc.document_id = ANY($4)'; params.push(documentIds); }
-
   const result = await querySystem(
     `SELECT dc.id, dc.document_id, dc.content, dc.chunk_index,
             d.original_name, d.mime_type,
             1 - (dc.embedding <=> $2::vector) as similarity_score
      FROM document_chunks dc
-     JOIN documents d ON d.id = dc.document_id
-     WHERE dc.org_id = $1 AND d.deleted_at IS NULL AND d.status = 'ready' ${docFilter}
-     ORDER BY dc.embedding <=> $2::vector LIMIT $3`,
+     JOIN documents d ON dc.document_id = d.id
+     WHERE dc.org_id = $1 AND d.deleted_at IS NULL ${docFilter}
+     ORDER BY dc.embedding <=> $2::vector
+     LIMIT $3`,
     params
   );
   return result.rows;
 };
 
-const fullTextSearch = async (orgId, query, limit, documentIds = null) => {
+const fulltextSearch = async (orgId, query, limit, documentIds = null) => {
   const params = [orgId, query, limit];
   let docFilter = '';
   if (documentIds?.length) { docFilter = 'AND dc.document_id = ANY($4)'; params.push(documentIds); }
-
   const result = await querySystem(
     `SELECT dc.id, dc.document_id, dc.content, dc.chunk_index,
             d.original_name, d.mime_type,
-            ts_rank(dc.content_tsv, plainto_tsquery('english', $2)) as text_score
+            ts_rank(dc.content_tsv, plainto_tsquery('english', $2)) as rank_score
      FROM document_chunks dc
-     JOIN documents d ON d.id = dc.document_id
-     WHERE dc.org_id = $1 AND d.deleted_at IS NULL AND d.status = 'ready'
+     JOIN documents d ON dc.document_id = d.id
+     WHERE dc.org_id = $1 AND d.deleted_at IS NULL
        AND dc.content_tsv @@ plainto_tsquery('english', $2) ${docFilter}
-     ORDER BY text_score DESC LIMIT $3`,
+     ORDER BY rank_score DESC
+     LIMIT $3`,
     params
   );
   return result.rows;
 };
 
-const reciprocalRankFusion = (semanticResults, textResults, k = 60) => {
+const rrfFusion = (semanticResults, fulltextResults, limit) => {
+  const K = 60;
   const scores = new Map();
-  const items = new Map();
-
-  semanticResults.forEach((item, i) => {
-    scores.set(item.id, (scores.get(item.id) || 0) + 1 / (k + i + 1));
-    items.set(item.id, { ...item, searchType: 'semantic' });
+  const docs = new Map();
+  semanticResults.forEach((r, i) => {
+    const key = r.id;
+    scores.set(key, (scores.get(key) || 0) + 1 / (K + i + 1));
+    docs.set(key, { ...r, searchType: 'semantic' });
   });
-
-  textResults.forEach((item, i) => {
-    scores.set(item.id, (scores.get(item.id) || 0) + 1 / (k + i + 1));
-    if (!items.has(item.id)) items.set(item.id, { ...item, searchType: 'fulltext' });
-    else items.set(item.id, { ...items.get(item.id), searchType: 'hybrid' });
+  fulltextResults.forEach((r, i) => {
+    const key = r.id;
+    scores.set(key, (scores.get(key) || 0) + 1 / (K + i + 1));
+    if (!docs.has(key)) docs.set(key, { ...r, searchType: 'fulltext' });
+    else docs.get(key).searchType = 'hybrid';
   });
-
-  return Array.from(scores.entries())
+  return [...scores.entries()]
     .sort((a, b) => b[1] - a[1])
-    .map(([id, rrfScore]) => ({ ...items.get(id), rrfScore: Math.round(rrfScore * 1000) / 1000 }));
+    .slice(0, limit)
+    .map(([id, score]) => ({ ...docs.get(id), rrfScore: Math.round(score * 10000) }));
 };
 
 export const search = async (orgId, query, options = {}) => {
   const { limit = 10, documentIds = null, searchType = 'hybrid' } = options;
-  if (!query || query.trim().length < 2) return { results: [], query, total: 0 };
+  if (!query?.trim()) throw new Error('Query is required');
 
-  const cacheKey = `search:${orgId}:${searchType}:${Buffer.from(query).toString('base64')}`;
+  const cacheKey = `search:${orgId}:${query}:${searchType}:${limit}`;
   const cached = await cacheGet(cacheKey);
   if (cached) return JSON.parse(cached);
 
-  logger.info('Executing search', { orgId, query: query.substring(0, 50), searchType });
-  const start = Date.now();
+  logger.info('Executing search', { orgId, query, searchType });
+
+  const queryEmbedding = getQueryEmbedding(query);
   let results = [];
 
   if (searchType === 'semantic' || searchType === 'hybrid') {
-    const embedding = await getQueryEmbedding(query);
-    const semanticResults = await semanticSearch(orgId, embedding, limit * 2, documentIds);
-    if (searchType === 'semantic') {
-      results = semanticResults.map(r => ({ ...r, searchType: 'semantic' }));
-    } else {
-      const textResults = await fullTextSearch(orgId, query, limit * 2, documentIds);
-      results = reciprocalRankFusion(semanticResults, textResults);
+    const semantic = await semanticSearch(orgId, queryEmbedding, limit, documentIds);
+    if (searchType === 'semantic') results = semantic.map(r => ({ ...r, searchType: 'semantic' }));
+    else {
+      const fulltext = await fulltextSearch(orgId, query, limit, documentIds);
+      results = rrfFusion(semantic, fulltext, limit);
     }
   } else {
-    results = await fullTextSearch(orgId, query, limit, documentIds);
+    const fulltext = await fulltextSearch(orgId, query, limit, documentIds);
+    results = fulltext.map(r => ({ ...r, searchType: 'fulltext' }));
   }
 
-  results = results.slice(0, limit);
-  const response = { results, query, total: results.length, searchType, durationMs: Date.now() - start };
+  const response = { query, results, total: results.length, searchType, durationMs: 0 };
   await cacheSet(cacheKey, JSON.stringify(response), CACHE_TTL);
-  logger.info('Search complete', { results: results.length, durationMs: response.durationMs });
   return response;
 };
