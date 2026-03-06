@@ -93,16 +93,7 @@ export const register = async ({ email, password, fullName, orgName }) => {
   try {
     await client.query('BEGIN');
 
-    // Create user
-    const userResult = await client.query(
-      `INSERT INTO users (email, password_hash, full_name)
-       VALUES ($1, $2, $3)
-       RETURNING id, email, full_name, created_at`,
-      [email.toLowerCase(), passwordHash, fullName]
-    );
-    const user = userResult.rows[0];
-
-    // Create organization
+    // Create organization first
     const orgResult = await client.query(
       `INSERT INTO organizations (name, slug)
        VALUES ($1, $2)
@@ -110,6 +101,15 @@ export const register = async ({ email, password, fullName, orgName }) => {
       [orgName, slug]
     );
     const org = orgResult.rows[0];
+
+    // Create user with org_id
+    const userResult = await client.query(
+      `INSERT INTO users (org_id, email, password_hash, full_name)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, email, full_name, created_at`,
+      [org.id, email.toLowerCase(), passwordHash, fullName]
+    );
+    const user = userResult.rows[0];
 
     // Make user the owner of their org
     await client.query(
