@@ -5,6 +5,7 @@ import {
   Download, RefreshCw, BookOpen, Brain, Lightbulb, ChevronDown, ChevronUp, Sparkles
 } from 'lucide-react';
 import { searchApi } from '../api/search';
+import { exportQAPdf } from '../utils/exportPdf';
 
 const difficultyConfig = {
   easy:   { cls: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/20 dark:text-green-400 dark:border-green-500/30', dot: 'bg-green-500' },

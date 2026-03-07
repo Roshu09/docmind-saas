@@ -252,9 +252,13 @@ export default function KnowledgeChat() {
       };
       setMessages(prev => [...prev, aiMsg]);
     } catch (err) {
+      const errMsg = err.response?.data?.message || err.message || '';
+      const isRateLimit = errMsg.toLowerCase().includes('rate limit') || errMsg.toLowerCase().includes('token');
       setMessages(prev => [...prev, {
         role: 'assistant',
-        text: '❌ Something went wrong. Please try again.',
+        text: isRateLimit
+          ? '⏳ Daily AI limit reached. Please wait ~40 mins and try again. (Groq free tier: 100k tokens/day)'
+          : '❌ Something went wrong. Please try again.',
         sources: [],
         id: Date.now() + 1,
       }]);

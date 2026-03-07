@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FileText, Zap, ChevronLeft, BookOpen, Target, CheckCircle, Tag, BarChart2, AlertCircle, Loader2, Download } from 'lucide-react';
 import { searchApi } from '../api/search';
+import { exportSummaryPdf } from '../utils/exportPdf';
 
 const DifficultyBadge = ({ level }) => {
   const styles = {

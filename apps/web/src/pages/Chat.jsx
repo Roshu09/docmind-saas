@@ -77,7 +77,7 @@ export default function Chat() {
         chunks_used: res.chunks_used,
       }])
     } catch (err) {
-      const msg = err.response?.data?.message || 'AI is unavailable. Make sure Ollama is running.'
+      const msg = err.response?.data?.message || err.response?.data?.message?.includes('rate') ? '⏳ Daily AI limit reached. Please wait ~40 mins and try again.' : 'AI is unavailable. Please try again.'
       setMessages(m => [...m, { role: 'assistant', content: `❌ ${msg}` }])
       toast.error(msg)
     } finally {
@@ -106,7 +106,7 @@ export default function Chat() {
           </div>
           <div>
             <p className="text-sm font-semibold">AI Assistant</p>
-            <p className="text-xs text-muted-foreground">Powered by Ollama · RAG search enabled</p>
+            <p className="text-xs text-muted-foreground">Powered by Groq (llama-3.3-70b) · RAG enabled</p>
           </div>
         </div>
         <button onClick={clearChat} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-lg hover:bg-secondary">
