@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FileText, Zap, ChevronLeft, BookOpen, Target, CheckCircle, Tag, BarChart2, AlertCircle, Loader2, Download } from 'lucide-react';
 import { searchApi } from '../api/search';
+import RateLimitCountdown from '../components/RateLimitCountdown';
 import { exportSummaryPdf } from '../utils/exportPdf';
 
 const DifficultyBadge = ({ level }) => {
@@ -29,6 +30,7 @@ export default function Summarize() {
   const [summary, setSummary] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
+  const [resetAt, setResetAt] = useState(() => localStorage.getItem("groq_reset_at") || null);
 
   useEffect(() => {
     setSummary(null);
@@ -44,7 +46,9 @@ export default function Summarize() {
       const res = await searchApi.summarize(documentId);
       setSummary(res.data.data);
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to generate summary');
+      const d = err.response?.data;
+      setError(d?.message || err.message || 'Failed to generate summary');
+      if (d?.resetAt) { setResetAt(d.resetAt); localStorage.setItem("groq_reset_at", d.resetAt); }
     } finally {
       setIsGenerating(false);
     }
@@ -88,14 +92,18 @@ export default function Summarize() {
 
       {/* Error */}
       {error && !isGenerating && (
-        <div className="text-center py-16 bg-card border border-border rounded-xl">
-          <div className="flex items-center justify-center gap-2 text-red-500 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-6 max-w-md mx-auto">
-            <AlertCircle size={16} /><span className="text-sm">{error}</span>
-          </div>
-          <button onClick={handleSummarize}
-            className="flex items-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all mx-auto">
-            <Zap className="w-5 h-5" />Try Again
-          </button>
+        <div className="text-center py-16 bg-card border border-border rounded-xl p-6">
+          {resetAt
+            ? <RateLimitCountdown resetAt={resetAt} onRetry={handleSummarize} />
+            : <>
+                <div className="flex items-center justify-center gap-2 text-red-500 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-6 max-w-md mx-auto">
+                  <AlertCircle size={16} /><span className="text-sm">{error}</span>
+                </div>
+                <button onClick={handleSummarize} className="flex items-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all mx-auto">
+                  <Zap className="w-5 h-5" />Try Again
+                </button>
+              </>
+          }
         </div>
       )}
 

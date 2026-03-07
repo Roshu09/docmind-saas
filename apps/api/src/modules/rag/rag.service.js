@@ -12,7 +12,21 @@ const groqChat = async (messages, maxTokens = 1024) => {
     body: JSON.stringify({ model: GROQ_MODEL, messages, max_tokens: maxTokens, temperature: 0.7 }),
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message || 'Groq API error');
+  if (!response.ok) {
+    const errMsg = data.error?.message || 'Groq API error';
+    const match = errMsg.match(/Please try again in (\d+h)?(\d+m)?(\d+s)?/);
+    let resetMs = 0;
+    if (match) {
+      const h = parseInt(match[1] || '0');
+      const m = parseInt(match[2] || '0');
+      const s = parseInt(match[3] || '0');
+      resetMs = h * 3600000 + m * 60000 + s * 1000;
+    }
+    const err = new Error(errMsg);
+    err.resetMs = resetMs;
+    err.isRateLimit = errMsg.toLowerCase().includes('rate limit');
+    throw err;
+  }
   return data.choices[0].message.content;
 };
 

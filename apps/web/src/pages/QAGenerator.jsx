@@ -5,6 +5,7 @@ import {
   Download, RefreshCw, BookOpen, Brain, Lightbulb, ChevronDown, ChevronUp, Sparkles
 } from 'lucide-react';
 import { searchApi } from '../api/search';
+import RateLimitCountdown from '../components/RateLimitCountdown';
 import { exportQAPdf } from '../utils/exportPdf';
 
 const difficultyConfig = {
@@ -73,6 +74,7 @@ export default function QAGenerator() {
   const [count, setCount] = useState(10);
   const [generated, setGenerated] = useState(false);
   const [diffFilter, setDiffFilter] = useState('all');
+  const [resetAt, setResetAt] = useState(() => localStorage.getItem("groq_reset_at") || null);
 
   useEffect(() => {
     setAllQuestions([]);
@@ -92,7 +94,9 @@ export default function QAGenerator() {
       setAllQuestions(res.data.data.questions || []);
       setGenerated(true);
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to generate Q&A');
+      const d = err.response?.data;
+      setError(d?.message || err.message || 'Failed to generate Q&A');
+      if (d?.resetAt) { setResetAt(d.resetAt); localStorage.setItem("groq_reset_at", d.resetAt); }
       setGenerated(false);
     } finally {
       setIsGenerating(false);
@@ -161,11 +165,12 @@ export default function QAGenerator() {
             <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
               Instantly create smart questions with answers, difficulty levels, and type classifications from your document.
             </p>
-
             {error && (
-              <div className="flex items-center gap-2 text-red-500 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-6">
-                <AlertCircle size={16} /><span className="text-sm">{error}</span>
-              </div>
+              resetAt
+                ? <RateLimitCountdown resetAt={resetAt} onRetry={() => handleGenerate(count)} />
+                : <div className="flex items-center gap-2 text-red-500 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-6">
+                    <AlertCircle size={16} /><span className="text-sm">{error}</span>
+                  </div>
             )}
 
             {/* Quantity selector */}
