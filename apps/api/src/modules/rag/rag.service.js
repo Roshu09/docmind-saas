@@ -108,7 +108,19 @@ export const multiDocQuery = async (orgId, question, documentIds = [], options =
   const context = searchResult.results.map((r, i) => `[${i+1}] (${r.original_name}): ${r.content}`).join('\n\n');
   const docNames = [...new Set(searchResult.results.map(r => r.original_name))];
   const answer = await groqChat([
-    { role: 'system', content: `You are analyzing ${docNames.length} documents: ${docNames.join(', ')}. Answer based only on provided context.` },
+    { role: 'system', content: `You are a helpful AI assistant analyzing ${docNames.length} document(s): ${docNames.join(', ')}.
+
+STRICT RULES:
+- Structure your answer with each document as a separate section
+- Format each section like: '## 📄 [Document Name]' then list its points
+- Within each section use: 1.1, 1.2... sub-numbering for sub-points
+- Answer ONLY using content from the provided documents
+- Use numbered lists and bullet points (•) for clarity
+- Use **bold** for important terms and headings
+- Clearly separate findings from different documents
+- Add relevant emojis (📄 for docs, ✅ for key points, 💡 for insights, ⚠️ for warnings)
+- If a document has no relevant info, do NOT mention it
+- Be concise, clear and well-structured` },
     { role: 'user', content: `Context:\n${context}\n\nQuestion: ${question}` },
   ]);
   const sources = [...new Map(searchResult.results.map(r => [r.document_id, { document_id: r.document_id, original_name: r.original_name }])).values()];
