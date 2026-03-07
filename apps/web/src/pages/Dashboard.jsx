@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Files, CheckCircle, Clock, AlertCircle, Upload, Search, MessageSquare, TrendingUp } from 'lucide-react'
+import { Files, CheckCircle, Clock, AlertCircle, Upload, Search, MessageSquare, FileText } from 'lucide-react'
 import { filesApi } from '../api/files'
 import { useAuthStore } from '../store/authStore'
 
@@ -26,6 +26,20 @@ const QuickAction = ({ to, icon: Icon, title, desc, color }) => (
     <p className="text-xs text-muted-foreground mt-1">{desc}</p>
   </Link>
 )
+
+function StatusBadge({ status }) {
+  const map = {
+    ready: 'bg-green-500/10 text-green-500 border-green-500/20',
+    processing: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
+    pending: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+    failed: 'bg-red-500/10 text-red-500 border-red-500/20',
+  }
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${map[status] || map.pending}`}>
+      {status}
+    </span>
+  )
+}
 
 export default function Dashboard() {
   const [docs, setDocs] = useState([])
@@ -63,8 +77,9 @@ export default function Dashboard() {
       {/* Quick actions */}
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <QuickAction to="/documents" icon={Upload} title="Upload Document" desc="PDF, DOCX, or TXT files" color="bg-blue-500" />
+          <QuickAction to="/documents" icon={FileText} title="My Documents" desc="Manage & view all files" color="bg-orange-500" />
           <QuickAction to="/search" icon={Search} title="Search Documents" desc="Semantic + full-text search" color="bg-violet-500" />
           <QuickAction to="/chat" icon={MessageSquare} title="Ask AI" desc="RAG-powered Q&A on your docs" color="bg-emerald-500" />
         </div>
@@ -98,9 +113,7 @@ export default function Dashboard() {
                 {docs.map(doc => (
                   <tr key={doc.id} className="hover:bg-secondary/30 transition-colors">
                     <td className="px-4 py-3 text-sm font-medium truncate max-w-48">{doc.original_name}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={doc.status} />
-                    </td>
+                    <td className="px-4 py-3"><StatusBadge status={doc.status} /></td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{doc.word_count ?? '—'}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{doc.chunk_count ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(doc.created_at).toLocaleDateString()}</td>
@@ -112,19 +125,5 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
-  )
-}
-
-function StatusBadge({ status }) {
-  const map = {
-    ready: 'bg-green-500/10 text-green-500 border-green-500/20',
-    processing: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-    pending: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-    failed: 'bg-red-500/10 text-red-500 border-red-500/20',
-  }
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${map[status] || map.pending}`}>
-      {status}
-    </span>
   )
 }

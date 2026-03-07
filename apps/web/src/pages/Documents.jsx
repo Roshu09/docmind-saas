@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
-import { Upload, FileText, Trash2, Download, RefreshCw, AlertCircle, CheckCircle, Clock, Zap } from 'lucide-react'
+import { Upload, FileText, Trash2, Download, RefreshCw, AlertCircle, CheckCircle, Clock, Zap, HelpCircle } from 'lucide-react'
 import { filesApi } from '../api/files'
 import toast from 'react-hot-toast'
 
@@ -169,7 +169,7 @@ export default function Documents() {
             <table className="w-full">
               <thead className="border-b border-border bg-secondary/20">
                 <tr>
-                  {['Name', 'Type', 'Status', 'Words', 'Chunks', 'Size', 'Actions'].map(h => (
+                  {['Name', 'Type', 'Status', 'Words', 'Chunks', 'Size', 'AI Tools', 'Actions'].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{h}</th>
                   ))}
                 </tr>
@@ -177,7 +177,7 @@ export default function Documents() {
               <tbody className="divide-y divide-border">
                 {docs.map(doc => (
                   <tr key={doc.id} className="hover:bg-secondary/20 transition-colors">
-                    <td className="px-4 py-3 text-sm font-medium max-w-48">
+                    <td className="px-4 py-3 text-sm font-medium max-w-40">
                       <span className="truncate block" title={doc.original_name}>{doc.original_name}</span>
                     </td>
                     <td className="px-4 py-3">
@@ -189,24 +189,41 @@ export default function Documents() {
                     <td className="px-4 py-3 text-sm text-muted-foreground">{doc.word_count?.toLocaleString() ?? '—'}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{doc.chunk_count ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{((doc.file_size_bytes || 0) / 1024).toFixed(0)} KB</td>
+
+                    {/* AI Tools column */}
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        {doc.status === 'ready' && (
+                      {doc.status === 'ready' ? (
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={() => navigate(`/documents/${doc.id}/summarize`)}
                             title="AI Summarize"
-                            className="p-1.5 rounded hover:bg-blue-500/10 transition-colors text-muted-foreground hover:text-blue-400"
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 text-xs font-semibold transition-colors border border-blue-500/20"
                           >
-                            <Zap size={13} />
+                            <Zap size={11} />Sum
                           </button>
-                        )}
+                          <button
+                            onClick={() => navigate(`/documents/${doc.id}/qa`)}
+                            title="Generate Q&A"
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 text-violet-500 text-xs font-semibold transition-colors border border-violet-500/20"
+                          >
+                            <HelpCircle size={11} />Q&A
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+
+                    {/* Actions column: Download + Delete only */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
                         <button onClick={() => handleDownload(doc)} title="Download"
-                          className="p-1.5 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
-                          <Download size={13} />
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors text-muted-foreground hover:text-foreground text-xs font-medium border border-border">
+                          <Download size={11} />
                         </button>
                         <button onClick={() => handleDelete(doc)} disabled={deleting === doc.id} title="Delete"
-                          className="p-1.5 rounded hover:bg-red-500/10 transition-colors text-muted-foreground hover:text-red-500">
-                          <Trash2 size={13} />
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-red-500/10 transition-colors text-muted-foreground hover:text-red-500 text-xs border border-transparent hover:border-red-500/20">
+                          <Trash2 size={11} />
                         </button>
                       </div>
                     </td>
