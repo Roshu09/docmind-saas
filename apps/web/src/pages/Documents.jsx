@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
-import { Upload, FileText, Trash2, Download, RefreshCw, AlertCircle, CheckCircle, Clock, X } from 'lucide-react'
+import { Upload, FileText, Trash2, Download, RefreshCw, AlertCircle, CheckCircle, Clock, Zap } from 'lucide-react'
 import { filesApi } from '../api/files'
 import toast from 'react-hot-toast'
 
@@ -43,6 +44,7 @@ function UploadItem({ file, progress, status, error }) {
 }
 
 export default function Documents() {
+  const navigate = useNavigate()
   const [docs, setDocs] = useState([])
   const [loading, setLoading] = useState(true)
   const [uploads, setUploads] = useState([])
@@ -159,7 +161,8 @@ export default function Documents() {
         ) : docs.length === 0 ? (
           <div className="p-12 text-center">
             <FileText size={32} className="mx-auto text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground">No documents found</p>
+            <p className="text-sm text-muted-foreground">No documents yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Upload your first document →</p>
           </div>
         ) : (
           <>
@@ -188,6 +191,15 @@ export default function Documents() {
                     <td className="px-4 py-3 text-xs text-muted-foreground">{((doc.file_size_bytes || 0) / 1024).toFixed(0)} KB</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
+                        {doc.status === 'ready' && (
+                          <button
+                            onClick={() => navigate(`/documents/${doc.id}/summarize`)}
+                            title="AI Summarize"
+                            className="p-1.5 rounded hover:bg-blue-500/10 transition-colors text-muted-foreground hover:text-blue-400"
+                          >
+                            <Zap size={13} />
+                          </button>
+                        )}
                         <button onClick={() => handleDownload(doc)} title="Download"
                           className="p-1.5 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
                           <Download size={13} />
