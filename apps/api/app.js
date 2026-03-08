@@ -22,6 +22,7 @@ import orgRoutes from './src/modules/organizations/org.routes.js';
 import fileRoutes from './src/modules/files/file.routes.js';
 import searchRoutes from './src/modules/search/search.routes.js';
 import ragRoutes from './src/modules/rag/rag.routes.js';
+import analyticsRoutes from './src/modules/analytics/analytics.routes.js';
 
 const app = express();
 
@@ -101,6 +102,7 @@ app.use('/api/organizations', orgRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/search', searchRoutes);  // Phase 5 ✅
 app.use('/api/rag', ragRoutes);        // Phase 5 ✅
+app.use('/api/analytics', analyticsRoutes); // Phase 9 ✅
 
 // Phase 5: Search + RAG routes (coming soon)
 // app.use('/api/search', searchRoutes);

@@ -14,6 +14,7 @@ import Layout from './components/Layout'
 import Summarize from './pages/Summarize'
 import QAGenerator from './pages/QAGenerator'
 import KnowledgeChat from './pages/KnowledgeChat'
+import Analytics from './pages/Analytics'
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 300000, retry: 2, refetchOnWindowFocus: false } } })
 const Guard = ({ children }) => { const ok = useAuthStore(s => s.isAuthenticated); return ok ? children : <Navigate to="/login" replace /> }
@@ -37,6 +38,7 @@ export default function App() {
             <Route path="/documents/:documentId/summarize" element={<Summarize />} />
             <Route path="/documents/:documentId/qa" element={<QAGenerator />} />
             <Route path="/knowledge-chat" element={<KnowledgeChat />} />
+            <Route path="/analytics" element={<Analytics />} />
           </Route>
         </Routes>
       </BrowserRouter>
