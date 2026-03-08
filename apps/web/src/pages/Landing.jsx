@@ -109,7 +109,7 @@ function Section({ id, children, style = {} }) {
 
 export default function Landing() {
   const navigate = useNavigate();
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(true);
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
 
@@ -120,7 +120,7 @@ export default function Landing() {
   }, []);
 
   const scrollTo = (id) => {
-    document.getElementById(id.toLowerCase().replace(/ /g, '-'))?.scrollIntoView({ behavior: 'smooth' });
+    const el = document.getElementById(id.toLowerCase().replace(/ /g, '-')); if(el) { const y = el.getBoundingClientRect().top + window.scrollY - 70; window.scrollTo({ top: y, behavior: 'smooth' }); }
     setMobileMenu(false);
   };
 
@@ -241,7 +241,7 @@ export default function Landing() {
             Live at docmind.space · Powered by Groq llama-3.3-70b
           </div>
 
-          <h1 className="floating" style={{ fontFamily: "'Sora'", fontSize: 'clamp(2.8rem, 7vw, 5rem)', fontWeight: 800, lineHeight: 1.08, letterSpacing: '-0.035em', color: t.text, marginBottom: 28 }}>
+          <h1 className="floating" style={{ fontFamily: "'Sora'", fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 800, lineHeight: 1.08, letterSpacing: '-0.035em', color: t.text, marginBottom: 28 }}>
             Turn Your Documents<br />
             Into <span className="grad-text">Intelligence</span>
           </h1>
