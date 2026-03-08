@@ -20,26 +20,14 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            set -e
             cd /home/ubuntu/aifi
-
-            # Pull latest code
             git pull origin main
-
-            # Install any new dependencies
             cd /home/ubuntu/aifi/apps/api && npm ci --omit=dev
             cd /home/ubuntu/aifi/apps/worker && npm ci --omit=dev
             cd /home/ubuntu/aifi/apps/web && npm ci
-
-            # Build frontend using local vite
-            cd /home/ubuntu/aifi/apps/web
-            VITE_API_URL=https://docmind.space ./node_modules/.bin/vite build
-
-            # Reload nginx
+            cd /home/ubuntu/aifi/apps/web && VITE_API_URL=https://docmind.space ./node_modules/.bin/vite build
             sudo systemctl reload nginx
-
-            # Restart services
-            cd /home/ubuntu/aifi
-            pm2 reload aifi-api --update-env
-            pm2 reload aifi-worker --update-env
-
+            cd /home/ubuntu/aifi && pm2 reload aifi-api --update-env
+            cd /home/ubuntu/aifi && pm2 reload aifi-worker --update-env
             echo "✅ Deployment successful!"
