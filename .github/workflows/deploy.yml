@@ -1,26 +1,8 @@
-# .github/workflows/deploy.yml
-# ============================================================
-# CD Pipeline - deploys to AWS EC2 on push to main
-#
-# Required GitHub Secrets (set in repo Settings > Secrets):
-#   AWS_ACCESS_KEY_ID       - IAM user with ECR + EC2 permissions
-#   AWS_SECRET_ACCESS_KEY   - IAM user secret
-#   AWS_REGION              - e.g. ap-south-1
-#   ECR_REGISTRY            - e.g. 123456789.dkr.ecr.ap-south-1.amazonaws.com
-#   EC2_HOST                - your EC2 public IP or domain
-#   EC2_SSH_KEY             - private SSH key (contents of .pem file)
-#   EC2_USER                - ec2-user or ubuntu
-# ============================================================
-
 name: Deploy to Production
 
 on:
   push:
     branches: [main]
-
-env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
-  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
 
 jobs:
   deploy:
@@ -31,70 +13,40 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── Step 1: Configure AWS credentials ──────────────────
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      # ── Step 2: Login to ECR ────────────────────────────────
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      # ── Step 3: Build and push API image ───────────────────
-      - name: Build and push API image
-        env:
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t $ECR_REGISTRY/aifi-api:$IMAGE_TAG ./apps/api
-          docker build -t $ECR_REGISTRY/aifi-api:latest ./apps/api
-          docker push $ECR_REGISTRY/aifi-api:$IMAGE_TAG
-          docker push $ECR_REGISTRY/aifi-api:latest
-
-      # ── Step 4: Build and push Worker image ────────────────
-      - name: Build and push Worker image
-        env:
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t $ECR_REGISTRY/aifi-worker:$IMAGE_TAG ./apps/worker
-          docker build -t $ECR_REGISTRY/aifi-worker:latest ./apps/worker
-          docker push $ECR_REGISTRY/aifi-worker:$IMAGE_TAG
-          docker push $ECR_REGISTRY/aifi-worker:latest
-
-      # ── Step 5: SSH to EC2 and pull + restart ──────────────
-      - name: Deploy to EC2
+      - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Login to ECR from EC2
-            aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
-              docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+            cd /home/ubuntu/aifi
 
-            # Pull latest images
-            docker pull ${{ env.ECR_REGISTRY }}/aifi-api:latest
-            docker pull ${{ env.ECR_REGISTRY }}/aifi-worker:latest
+            # Pull latest code
+            git pull origin main
 
-            # Navigate to deployment directory
-            cd ~/ai-file-intelligence
+            # Install any new dependencies
+            cd apps/api && npm ci --omit=dev
+            cd /home/ubuntu/aifi/apps/worker && npm ci --omit=dev
 
-            # Restart services with zero-downtime
-            docker-compose pull
-            docker-compose up -d --no-deps api worker
+            # Build frontend
+            cd /home/ubuntu/aifi/apps/web
+            VITE_API_URL=https://docmind.space npm run build
+
+            # Reload nginx for new frontend
+            sudo systemctl reload nginx
+
+            # Restart API and worker with zero downtime
+            cd /home/ubuntu/aifi
+            pm2 reload aifi-api --update-env
+            pm2 reload aifi-worker --update-env
 
             # Health check
-            sleep 10
-            curl -f http://localhost:3000/health || exit 1
+            sleep 5
+            curl -f https://docmind.space/api/health || exit 1
 
             echo "✅ Deployment successful!"
 
-      # ── Step 6: Notify on failure ───────────────────────────
       - name: Notify on failure
         if: failure()
         run: echo "❌ Deployment failed for commit ${{ github.sha }}"
-        # In production: add Slack/email notification here
