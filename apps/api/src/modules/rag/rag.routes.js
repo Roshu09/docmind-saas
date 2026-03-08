@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { authenticate } from '../../middlewares/auth.js';
-import { ragController, summarizeController, generateQAController, multiDocController } from './rag.controller.js';
+import { ragController, summarizeController, generateQAController, multiDocController, compareController } from './rag.controller.js';
 const router = Router();
 router.use(authenticate);
 router.post('/query', ragController);
 router.post('/multi-query', multiDocController);
 router.post('/summarize/:documentId', summarizeController);
 router.post('/generate-qa/:documentId', generateQAController);
+router.post('/compare', compareController);
 export default router;

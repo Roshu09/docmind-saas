@@ -1,4 +1,4 @@
-import { ragQuery, summarizeDocument, generateQA, multiDocQuery } from './rag.service.js';
+import { ragQuery, summarizeDocument, generateQA, multiDocQuery, compareDocuments } from './rag.service.js';
 import { query } from '../../config/database.js';
 
 const logQuery = async (orgId, userId, feature, documentId = null) => {
@@ -59,6 +59,14 @@ export const generateQAController = async (req, res) => {
   try {
     const result = await generateQA(req.user.orgId, documentId, count);
     logQuery(req.user.orgId, req.user.id, 'qa_generator', documentId);
+    res.json({ success: true, data: result });
+  } catch (err) { handleError(res, err); }
+};
+export const compareController = async (req, res) => {
+  const { docIdA, docIdB } = req.body;
+  if (!docIdA || !docIdB) return res.status(400).json({ success: false, message: 'Two document IDs required' });
+  try {
+    const result = await compareDocuments(req.user.orgId, docIdA, docIdB);
     res.json({ success: true, data: result });
   } catch (err) { handleError(res, err); }
 };

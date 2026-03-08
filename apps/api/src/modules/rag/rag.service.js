@@ -140,3 +140,50 @@ STRICT RULES:
   const sources = [...new Map(searchResult.results.map(r => [r.document_id, { document_id: r.document_id, original_name: r.original_name }])).values()];
   return { answer, sources, chunks_used: searchResult.results.length, documents_searched: docNames.length };
 };
+
+// ── Document Comparison ───────────────────────────────────────────
+export const compareDocuments = async (orgId, docIdA, docIdB) => {
+  logger.info('Compare documents', { docIdA, docIdB });
+
+  const [chunksA, chunksB] = await Promise.all([
+    getDocumentChunks(docIdA, orgId),
+    getDocumentChunks(docIdB, orgId),
+  ]);
+
+  if (!chunksA.length || !chunksB.length) {
+    throw new Error('One or both documents have no content to compare');
+  }
+
+  const nameA = chunksA[0].original_name;
+  const nameB = chunksB[0].original_name;
+
+  const contextA = chunksA.slice(0, 4).map(c => c.content).join('\n');
+  const contextB = chunksB.slice(0, 4).map(c => c.content).join('\n');
+
+  const answer = await groqChat([
+    { role: 'system', content: `You are an expert document analyst. Compare two documents and return ONLY valid JSON, no markdown, no explanation.
+
+Return this exact structure:
+{
+  "doc_a_summary": "2-3 sentence summary of first document",
+  "doc_b_summary": "2-3 sentence summary of second document",
+  "similarities": ["similarity 1", "similarity 2", "similarity 3"],
+  "differences": [
+    {"aspect": "aspect name", "doc_a": "how doc A handles this", "doc_b": "how doc B handles this"}
+  ],
+  "insights": ["insight 1", "insight 2", "insight 3"],
+  "recommendation": "1-2 sentence conclusion about how these docs relate"
+}` },
+    { role: 'user', content: `Document A — "${nameA}":\n${contextA}\n\n---\n\nDocument B — "${nameB}":\n${contextB}\n\nCompare these two documents.` },
+  ]);
+
+  let result;
+  try {
+    const match = answer.match(/\{[\s\S]*\}/);
+    result = JSON.parse(match ? match[0] : answer);
+  } catch {
+    result = { doc_a_summary: '', doc_b_summary: '', similarities: [], differences: [], insights: [], recommendation: answer };
+  }
+
+  return { ...result, doc_a_name: nameA, doc_b_name: nameB };
+};

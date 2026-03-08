@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { BarChart2, Brain, LayoutDashboard, Files, Search, MessageSquare, LogOut, Sun, Moon, Menu, X, BookOpenCheck } from 'lucide-react'
+import { BarChart2, Brain, GitCompare, LayoutDashboard, Files, Search, MessageSquare, LogOut, Sun, Moon, Menu, X, BookOpenCheck } from 'lucide-react'
 import { useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
@@ -13,6 +13,7 @@ const nav = [
   { to: '/chat', icon: MessageSquare, label: 'Ask AI' },
   { to: '/knowledge-chat', icon: BookOpenCheck, label: 'Knowledge Chat' },
   { to: '/analytics', icon: BarChart2, label: 'Analytics' },
+  { to: '/compare', icon: GitCompare, label: 'Compare Docs' },
 ]
 
 export default function Layout() {

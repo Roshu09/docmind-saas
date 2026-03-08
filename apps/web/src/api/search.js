@@ -6,6 +6,7 @@ export const searchApi = {
   summarize: (documentId) => client.post(`/api/rag/summarize/${documentId}`),
   generateQA: (documentId, count = 5) => client.post(`/api/rag/generate-qa/${documentId}`, { count }),
   multiDocQuery: (question, documentIds = []) => client.post('/api/rag/multi-query', { question, documentIds }),
+  compareDocuments: (docIdA, docIdB) => client.post('/api/rag/compare', { docIdA, docIdB }),
 }
 
 export const ragApi = searchApi
