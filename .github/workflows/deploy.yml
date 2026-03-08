@@ -25,9 +25,6 @@ jobs:
             git pull origin main
             cd /home/ubuntu/aifi/apps/api && npm ci --omit=dev
             cd /home/ubuntu/aifi/apps/worker && npm ci --omit=dev
-            cd /home/ubuntu/aifi/apps/web && npm ci
-            cd /home/ubuntu/aifi/apps/web && VITE_API_URL=https://docmind.space ./node_modules/.bin/vite build
-            sudo systemctl reload nginx
             cd /home/ubuntu/aifi && pm2 reload aifi-api --update-env
             cd /home/ubuntu/aifi && pm2 reload aifi-worker --update-env
             echo "✅ Deployment successful!"
