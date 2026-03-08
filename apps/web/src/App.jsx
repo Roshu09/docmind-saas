@@ -16,6 +16,7 @@ import QAGenerator from './pages/QAGenerator'
 import KnowledgeChat from './pages/KnowledgeChat'
 import Analytics from './pages/Analytics'
 import Compare from './pages/Compare'
+import Landing from './pages/Landing'
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 300000, retry: 2, refetchOnWindowFocus: false } } })
 const Guard = ({ children }) => { const ok = useAuthStore(s => s.isAuthenticated); return ok ? children : <Navigate to="/login" replace /> }
@@ -28,7 +29,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Public><Login /></Public>} />
           <Route path="/register" element={<Public><Register /></Public>} />
           <Route element={<Guard><Layout /></Guard>}>
