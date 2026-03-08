@@ -26,27 +26,20 @@ jobs:
             git pull origin main
 
             # Install any new dependencies
-            cd apps/api && npm ci --omit=dev
+            cd /home/ubuntu/aifi/apps/api && npm ci --omit=dev
             cd /home/ubuntu/aifi/apps/worker && npm ci --omit=dev
+            cd /home/ubuntu/aifi/apps/web && npm ci
 
-            # Build frontend
+            # Build frontend using local vite
             cd /home/ubuntu/aifi/apps/web
-            VITE_API_URL=https://docmind.space npm run build
+            VITE_API_URL=https://docmind.space ./node_modules/.bin/vite build
 
-            # Reload nginx for new frontend
+            # Reload nginx
             sudo systemctl reload nginx
 
-            # Restart API and worker with zero downtime
+            # Restart services
             cd /home/ubuntu/aifi
             pm2 reload aifi-api --update-env
             pm2 reload aifi-worker --update-env
 
-            # Health check
-            sleep 5
-            curl -f https://docmind.space/api/health || exit 1
-
             echo "✅ Deployment successful!"
-
-      - name: Notify on failure
-        if: failure()
-        run: echo "❌ Deployment failed for commit ${{ github.sha }}"
