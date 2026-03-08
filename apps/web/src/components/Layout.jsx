@@ -3,6 +3,7 @@ import { BarChart2, Brain, GitCompare, LayoutDashboard, Files, Search, MessageSq
 import { useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
+import ProfilePopup from './ProfilePopup'
 import { authApi } from '../api/auth'
 import toast from 'react-hot-toast'
 
@@ -66,20 +67,8 @@ export default function Layout() {
           ))}
         </nav>
 
-        <div className="px-3 py-4 border-t border-border space-y-1">
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
-              {user?.fullName?.[0]?.toUpperCase()}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium truncate">{user?.fullName}</p>
-              <p className="text-xs text-muted-foreground truncate">{org?.role}</p>
-            </div>
-          </div>
-          <button onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-            <LogOut size={16} /> Logout
-          </button>
+        <div className="px-3 py-4 border-t border-border">
+          <ProfilePopup />
         </div>
       </aside>
 

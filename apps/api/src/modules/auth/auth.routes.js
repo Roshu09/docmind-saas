@@ -6,6 +6,7 @@ import {
   refreshController,
   logoutController,
   getMeController,
+  getProfileController,
 } from './auth.controller.js';
 import { authenticate } from '../../middlewares/auth.js';
 import { authLimiter } from '../../middlewares/rateLimiter.js';
@@ -20,5 +21,6 @@ router.post('/logout', logoutController);
 
 // Protected route (requires valid access token)
 router.get('/me', authenticate, getMeController);
+router.get('/profile', authenticate, getProfileController);
 
 export default router;

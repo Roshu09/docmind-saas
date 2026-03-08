@@ -129,3 +129,42 @@ export const getMeController = async (req, res) => {
     data: { user },
   });
 };
+
+export const getProfileController = async (req, res) => {
+  const { id, orgId } = req.user;
+  const { query } = await import('../../config/database.js');
+
+  const [userResult, statsResult] = await Promise.all([
+    query(`SELECT u.id, u.email, u.full_name, u.role, u.avatar_url, u.created_at, u.last_login_at,
+                  o.name as org_name, o.plan as org_plan
+           FROM users u
+           JOIN organizations o ON o.id = u.org_id
+           WHERE u.id = $1`, [id]),
+    query(`SELECT
+             (SELECT COUNT(*) FROM documents WHERE org_id=$1 AND uploaded_by=$2 AND deleted_at IS NULL) as my_docs,
+             (SELECT COUNT(*) FROM documents WHERE org_id=$1 AND deleted_at IS NULL) as total_docs,
+             (SELECT COUNT(*) FROM ai_query_logs WHERE org_id=$1 AND user_id=$2) as my_queries,
+             (SELECT COUNT(*) FROM org_members WHERE org_id=$1) as team_size`, [orgId, id]),
+  ]);
+
+  const user = userResult.rows[0];
+  const stats = statsResult.rows[0];
+
+  res.json({ success: true, data: {
+    id: user.id,
+    full_name: user.full_name,
+    email: user.email,
+    role: user.role,
+    avatar_url: user.avatar_url,
+    created_at: user.created_at,
+    last_login_at: user.last_login_at,
+    org_name: user.org_name,
+    org_plan: user.org_plan,
+    stats: {
+      my_docs: parseInt(stats.my_docs),
+      total_docs: parseInt(stats.total_docs),
+      my_queries: parseInt(stats.my_queries),
+      team_size: parseInt(stats.team_size),
+    }
+  }});
+};
