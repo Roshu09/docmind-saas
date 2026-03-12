@@ -18,6 +18,7 @@ import Analytics from './pages/Analytics'
 import Compare from './pages/Compare'
 import Landing from './pages/Landing'
 import VerifyEmail from './pages/VerifyEmail'
+import AuthCallback from './pages/AuthCallback'
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 300000, retry: 2, refetchOnWindowFocus: false } } })
 const Guard = ({ children }) => { const ok = useAuthStore(s => s.isAuthenticated); return ok ? children : <Navigate to="/login" replace /> }
@@ -32,6 +33,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/verify-email" element={<Guard><VerifyEmail /></Guard>} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/login" element={<Public><Login /></Public>} />
           <Route path="/register" element={<Register />} />
           <Route element={<Guard><Layout /></Guard>}>

@@ -138,7 +138,7 @@ export const getProfileController = async (req, res) => {
     query(`SELECT u.id, u.email, u.full_name, u.role, u.avatar_url, u.created_at, u.last_login_at,
                   o.name as org_name, o.plan as org_plan
            FROM users u
-           JOIN organizations o ON o.id = u.org_id
+           LEFT JOIN organizations o ON o.id = u.org_id
            WHERE u.id = $1`, [id]),
     query(`SELECT
              (SELECT COUNT(*) FROM documents WHERE org_id=$1 AND uploaded_by=$2 AND deleted_at IS NULL) as my_docs,

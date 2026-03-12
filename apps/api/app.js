@@ -5,7 +5,8 @@
 // Kept separate from server.js so it's testable without starting HTTP server.
 // ============================================================
 
-import 'express-async-errors'; // Patch Express to handle async errors automatically
+import 'express-async-errors';
+import passport from './src/config/passport.js'; // Patch Express to handle async errors automatically
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
