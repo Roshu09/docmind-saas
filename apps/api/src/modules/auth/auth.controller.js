@@ -168,3 +168,19 @@ export const getProfileController = async (req, res) => {
     }
   }});
 };
+
+export const sendOTPController = async (req, res) => {
+  const { id, email, fullName } = req.user;
+  const { sendVerificationOTP } = await import('./otp.service.js');
+  await sendVerificationOTP(id, email, fullName);
+  res.json({ success: true, message: 'OTP sent to ' + email });
+};
+
+export const verifyOTPController = async (req, res) => {
+  const { otp } = req.body;
+  const { email } = req.user;
+  const { verifyOTP } = await import('./otp.service.js');
+  const result = await verifyOTP(email, otp);
+  if (!result.success) return res.status(400).json({ success: false, message: result.message });
+  res.json({ success: true, message: 'Email verified successfully!' });
+};

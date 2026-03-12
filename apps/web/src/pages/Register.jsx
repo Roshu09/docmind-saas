@@ -22,7 +22,8 @@ export default function Register() {
       const { data } = await authApi.register(form)
       setAuth(data.data.user, data.data.org, data.data.accessToken)
       toast.success('Workspace created!')
-      navigate('/dashboard')
+      console.log('NAVIGATING TO VERIFY EMAIL')
+      setTimeout(() => navigate('/verify-email'), 100)
     } catch (err) { toast.error(err.response?.data?.message || 'Registration failed') }
     finally { setLoading(false) }
   }

@@ -17,10 +17,11 @@ import KnowledgeChat from './pages/KnowledgeChat'
 import Analytics from './pages/Analytics'
 import Compare from './pages/Compare'
 import Landing from './pages/Landing'
+import VerifyEmail from './pages/VerifyEmail'
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 300000, retry: 2, refetchOnWindowFocus: false } } })
 const Guard = ({ children }) => { const ok = useAuthStore(s => s.isAuthenticated); return ok ? children : <Navigate to="/login" replace /> }
-const Public = ({ children }) => { const ok = useAuthStore(s => s.isAuthenticated); return ok ? <Navigate to="/dashboard" replace /> : children }
+const Public = ({ children }) => { const ok = useAuthStore(s => s.isAuthenticated); if (ok && window.location.pathname !== '/verify-email') return <Navigate to="/dashboard" replace />; return children }
 
 export default function App() {
   const initTheme = useThemeStore(s => s.initTheme)
@@ -30,8 +31,9 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/verify-email" element={<Guard><VerifyEmail /></Guard>} />
           <Route path="/login" element={<Public><Login /></Public>} />
-          <Route path="/register" element={<Public><Register /></Public>} />
+          <Route path="/register" element={<Register />} />
           <Route element={<Guard><Layout /></Guard>}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/documents" element={<Documents />} />

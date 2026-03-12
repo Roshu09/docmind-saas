@@ -7,6 +7,8 @@ import {
   logoutController,
   getMeController,
   getProfileController,
+  sendOTPController,
+  verifyOTPController,
 } from './auth.controller.js';
 import { authenticate } from '../../middlewares/auth.js';
 import { authLimiter } from '../../middlewares/rateLimiter.js';
@@ -22,5 +24,7 @@ router.post('/logout', logoutController);
 // Protected route (requires valid access token)
 router.get('/me', authenticate, getMeController);
 router.get('/profile', authenticate, getProfileController);
+router.post('/send-otp', authenticate, sendOTPController);
+router.post('/verify-otp', authenticate, verifyOTPController);
 
 export default router;
