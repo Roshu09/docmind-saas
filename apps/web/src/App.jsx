@@ -19,6 +19,7 @@ import Compare from './pages/Compare'
 import Landing from './pages/Landing'
 import VerifyEmail from './pages/VerifyEmail'
 import AuthCallback from './pages/AuthCallback'
+import ApiKeys from './pages/ApiKeys'
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 300000, retry: 2, refetchOnWindowFocus: false } } })
 const Guard = ({ children }) => { const ok = useAuthStore(s => s.isAuthenticated); return ok ? children : <Navigate to="/login" replace /> }
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="/knowledge-chat" element={<KnowledgeChat />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/compare" element={<Compare />} />
+            <Route path="/apikeys" element={<ApiKeys />} />
           </Route>
         </Routes>
       </BrowserRouter>
