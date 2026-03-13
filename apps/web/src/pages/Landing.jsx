@@ -32,7 +32,7 @@ const TECH = [
   { name: 'Node.js 22', icon: '🟢', desc: 'ESM backend runtime' },
 ];
 
-const NAV_LINKS = ['Features', 'How It Works', 'Architecture', 'Tech Stack'];
+const NAV_LINKS = ['Features', 'API Keys', 'How It Works', 'Architecture', 'Tech Stack'];
 
 function ParticleCanvas({ dark }) {
   const canvasRef = useRef(null);
@@ -342,6 +342,33 @@ export default function Landing() {
       </Section>
 
       {/* ── FEATURES ── */}
+      <Section id="api-keys">
+        <div style={{ textAlign: 'center', marginBottom: 48 }}>
+          <h2 style={{ fontSize: 'clamp(1.6rem,4vw,2.4rem)', fontWeight: 800, color: t.text, marginBottom: 16 }}>
+            🔑 Developer API Keys
+          </h2>
+          <p style={{ color: t.textMuted, fontSize: '1.05rem', maxWidth: 560, margin: '0 auto 36px' }}>
+            Generate scoped API keys to integrate DocMind into your own apps. Set expiry, control permissions, track usage.
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'center', maxWidth: 800, margin: '0 auto' }}>
+            {[
+              { icon: '🎯', title: 'Scoped Access', desc: 'Limit keys to search, summarize, Q&A, chat or compare' },
+              { icon: '⏱️', title: 'Expiry Control', desc: 'Set keys to expire in 30, 90, 365 days or never' },
+              { icon: '📊', title: 'Usage Tracking', desc: 'Monitor request counts and last used timestamp per key' },
+              { icon: '🔒', title: 'SHA-256 Hashed', desc: 'Keys stored as hashes — shown only once at creation' },
+            ].map((item, i) => (
+              <div key={i} style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 16, padding: '20px 24px', width: 175, textAlign: 'left' }}>
+                <div style={{ fontSize: '1.6rem', marginBottom: 8 }}>{item.icon}</div>
+                <div style={{ fontWeight: 700, color: t.text, fontSize: '0.95rem', marginBottom: 6 }}>{item.title}</div>
+                <div style={{ color: t.textMuted, fontSize: '0.82rem', lineHeight: 1.5 }}>{item.desc}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 28, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '14px 22px', display: 'inline-block', fontFamily: 'monospace', fontSize: '0.85rem', color: t.textMuted, textAlign: 'left' }}>
+            <span style={{ color: '#a78bfa' }}>curl</span> -H <span style={{ color: '#34d399' }}>"X-API-Key: aifi_live_xxxxxxxxxxxx"</span> https://docmind.space/api/search
+          </div>
+        </div>
+      </Section>
       <Section id="features">
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '80px 1.2rem' }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
