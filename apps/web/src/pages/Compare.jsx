@@ -93,7 +93,7 @@ export default function Compare() {
   const COLOR_B = '#8b5cf6';
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
       <button onClick={() => navigate('/documents')}
         className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm">
         <ChevronLeft size={16} /> Back to Documents

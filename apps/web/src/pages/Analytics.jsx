@@ -124,7 +124,7 @@ export default function Analytics() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6">
       <div className="bg-card border border-border rounded-xl p-6">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-violet-500/20 rounded-xl flex items-center justify-center">

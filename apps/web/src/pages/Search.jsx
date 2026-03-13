@@ -71,7 +71,7 @@ export default function Search() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Search Documents</h1>
         <p className="text-muted-foreground text-sm mt-1">Search across all your documents using AI-powered semantic search</p>

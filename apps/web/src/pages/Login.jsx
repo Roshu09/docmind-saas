@@ -28,7 +28,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 sm:p-6">
       <button onClick={toggleTheme} className="fixed top-4 right-4 p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors">
         {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
       </button>
@@ -40,7 +40,7 @@ export default function Login() {
           <h1 className="text-2xl font-bold tracking-tight">AI File Intelligence</h1>
           <p className="text-muted-foreground mt-1 text-sm">Sign in to your workspace</p>
         </div>
-        <div className="bg-card border border-border rounded-xl p-8 shadow-sm">
+        <div className="bg-card border border-border rounded-xl p-5 sm:p-8 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Email</label>

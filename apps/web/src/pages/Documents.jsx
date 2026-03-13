@@ -110,14 +110,14 @@ export default function Documents() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-4 sm:space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Documents</h1>
         <p className="text-muted-foreground text-sm mt-1">Upload and manage your AI-processed documents</p>
       </div>
 
       {/* Upload zone */}
-      <div {...getRootProps()} className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all
+      <div {...getRootProps()} className={`border-2 border-dashed rounded-xl p-5 sm:p-8 text-center cursor-pointer transition-all
         ${isDragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-secondary/30'}`}>
         <input {...getInputProps()} />
         <Upload size={32} className={`mx-auto mb-3 ${isDragActive ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -166,7 +166,7 @@ export default function Documents() {
           </div>
         ) : (
           <>
-            <table className="w-full">
+            <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
               <thead className="border-b border-border bg-secondary/20">
                 <tr>
                   {['Name', 'Type', 'Status', 'Words', 'Chunks', 'Size', 'AI Tools', 'Actions'].map(h => (
@@ -231,7 +231,7 @@ export default function Documents() {
                 ))}
               </tbody>
             </table>
-            {pagination && pagination.pages > 1 && (
+            </div>{pagination && pagination.pages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t border-border">
                 <p className="text-xs text-muted-foreground">
                   {pagination.total} documents · Page {page} of {pagination.pages}

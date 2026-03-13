@@ -59,7 +59,7 @@ export default function Dashboard() {
   const total = docs.length
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6 sm:space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold">Good to see you, {user?.fullName?.split(' ')[0]} 👋</h1>
@@ -67,7 +67,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard icon={Files} label="Total Documents" value={total} />
         <StatCard icon={CheckCircle} label="Ready" value={ready} color="text-green-500" />
         <StatCard icon={Clock} label="Processing" value={processing} color="text-yellow-500" />
@@ -77,7 +77,7 @@ export default function Dashboard() {
       {/* Quick actions */}
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <QuickAction to="/documents" icon={Upload} title="Upload Document" desc="PDF, DOCX, or TXT files" color="bg-blue-500" />
           <QuickAction to="/documents" icon={FileText} title="My Documents" desc="Manage & view all files" color="bg-orange-500" />
           <QuickAction to="/search" icon={Search} title="Search Documents" desc="Semantic + full-text search" color="bg-violet-500" />

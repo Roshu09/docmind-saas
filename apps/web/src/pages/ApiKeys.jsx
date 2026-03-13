@@ -184,7 +184,7 @@ export default function ApiKeys() {
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-4 sm:space-y-6">
       {showModal && <NewKeyModal onClose={() => setShowModal(false)} onCreate={handleCreate} />}
       {newKey && <NewKeyDisplay keyData={newKey} onClose={() => setNewKey(null)} />}
 
