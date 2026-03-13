@@ -161,7 +161,7 @@ export default function Chat() {
             />
           </div>
           <button type="submit" disabled={loading || !input.trim()}
-            className="p-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors">
+            className="p-4 sm:p-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors">
             <Send size={16} />
           </button>
         </form>
