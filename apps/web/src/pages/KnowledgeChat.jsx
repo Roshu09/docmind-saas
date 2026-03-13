@@ -156,6 +156,7 @@ export default function KnowledgeChat() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [docsLoading, setDocsLoading] = useState(true);
+  const [showPanel, setShowPanel] = useState(false);
   const [chatStarted, setChatStarted] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
@@ -283,6 +284,11 @@ export default function KnowledgeChat() {
       <div className="px-6 py-4 border-b border-border bg-card flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-violet-500/20 rounded-xl flex items-center justify-center">
+            <button onClick={() => setShowPanel(p => !p)}
+              className="md:hidden mr-1 p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground border border-border"
+              title="Toggle document panel">
+              <Database size={16} className="text-violet-500" />
+            </button>
             <BookOpenCheck className="w-5 h-5 text-violet-500" />
           </div>
           <div>
@@ -313,13 +319,21 @@ export default function KnowledgeChat() {
         </div>
       )}
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 relative">
+
+        {/* Mobile overlay */}
+        {showPanel && (
+          <div className="fixed inset-0 z-20 bg-black/50 backdrop-blur-sm md:hidden" onClick={() => setShowPanel(false)} />
+        )}
 
         {/* Left panel */}
-        <div className="w-64 flex-shrink-0 border-r border-border bg-card flex flex-col">
-          <div className="px-4 py-3 border-b border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Select Documents</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{selectedDocs.length}/{MAX_DOCS} selected</p>
+        <div className={`flex flex-col border-r border-border bg-card fixed inset-y-0 left-0 z-30 w-72 md:relative md:inset-y-auto md:left-auto md:w-64 md:flex-shrink-0 transition-transform duration-300 ease-in-out ${showPanel ? "translate-x-0 shadow-2xl" : "-translate-x-full md:translate-x-0"}`}>
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Select Documents</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{selectedDocs.length}/{MAX_DOCS} selected</p>
+            </div>
+            <button onClick={() => setShowPanel(false)} className="md:hidden p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"><X size={16} /></button>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
             {docsLoading ? (
@@ -363,7 +377,7 @@ export default function KnowledgeChat() {
         {/* Right panel — chat */}
         <div className="flex-1 flex flex-col min-w-0">
 
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+          <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-5">
             {!chatStarted && (
               <div className="space-y-6 py-4">
                 <div className="text-center">
