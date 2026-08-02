@@ -166,3 +166,4 @@ DELETE /api/apikeys/:id    - Delete key
 ---
 
 *Built with ❤️ using React, Node.js, PostgreSQL, pgvector, Groq AI, and AWS*
+# DocMind - Last deployed: Sun Aug  2 09:44:07 UTC 2026
