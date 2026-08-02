@@ -38,12 +38,12 @@ export default function Summarize() {
     handleSummarize();
   }, [documentId]);
 
-  const handleSummarize = async () => {
+  const handleSummarize = async (force = false) => {
     setIsGenerating(true);
     setError(null);
     setSummary(null);
     try {
-      const res = await searchApi.summarize(documentId);
+      const res = await searchApi.summarize(documentId, force);
       setSummary(res.data.data);
     } catch (err) {
       const d = err.response?.data;
@@ -116,7 +116,7 @@ export default function Summarize() {
               <SentimentBadge sentiment={summary.sentiment} />
             </div>
             <div className="flex gap-3">
-              <button onClick={handleSummarize} className="flex items-center gap-2 px-4 py-2 bg-secondary hover:bg-secondary/80 text-sm rounded-lg transition-colors">
+              <button onClick={() => handleSummarize(true)} className="flex items-center gap-2 px-4 py-2 bg-secondary hover:bg-secondary/80 text-sm rounded-lg transition-colors">
                 <Zap size={14} />Regenerate
               </button>
               <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition-colors">

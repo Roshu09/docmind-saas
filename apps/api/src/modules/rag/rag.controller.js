@@ -44,9 +44,10 @@ export const multiDocController = async (req, res) => {
 
 export const summarizeController = async (req, res) => {
   const { documentId } = req.params;
-  logger.info('Summarize request', { documentId, orgId: req.user.orgId });
+  const force = req.query.force === 'true';
+  logger.info('Summarize request', { documentId, orgId: req.user.orgId, force });
   try {
-    const result = await summarizeDocument(req.user.orgId, documentId);
+    const result = await summarizeDocument(req.user.orgId, documentId, force);
     logQuery(req.user.orgId, req.user.id, 'summarize', documentId);
     res.json({ success: true, data: result });
   } catch (err) { handleError(res, err); }
@@ -55,9 +56,10 @@ export const summarizeController = async (req, res) => {
 export const generateQAController = async (req, res) => {
   const { documentId } = req.params;
   const { count = 5 } = req.body;
-  logger.info('Generate Q&A request', { documentId, count });
+  const force = req.query.force === 'true';
+  logger.info('Generate Q&A request', { documentId, count, force });
   try {
-    const result = await generateQA(req.user.orgId, documentId, count);
+    const result = await generateQA(req.user.orgId, documentId, count, force);
     logQuery(req.user.orgId, req.user.id, 'qa_generator', documentId);
     res.json({ success: true, data: result });
   } catch (err) { handleError(res, err); }

@@ -62,15 +62,17 @@ export const ragQuery = async (orgId, question, options = {}) => {
 };
 
 // ── Summarize Document ───────────────────────────────────────
-export const summarizeDocument = async (orgId, documentId) => {
-  logger.info('Summarizing document', { documentId });
+export const summarizeDocument = async (orgId, documentId, force = false) => {
+  logger.info('Summarizing document', { documentId, force });
 
-  // Check cache first
+  // Check cache first (skip if force regenerate)
   const cacheKey = `summary:${documentId}`;
-  const cached = await cacheGet(cacheKey);
-  if (cached) {
-    logger.info('Cache HIT: summary', { documentId });
-    return cached;
+  if (!force) {
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+      logger.info('Cache HIT: summary', { documentId });
+      return cached;
+    }
   }
 
   const chunks = await getDocumentChunks(documentId, orgId);
@@ -100,15 +102,17 @@ Return ONLY valid JSON, no markdown.` },
 };
 
 // ── Auto Q&A Generator ───────────────────────────────────────
-export const generateQA = async (orgId, documentId, count = 5) => {
-  logger.info('Generating Q&A', { documentId, count });
+export const generateQA = async (orgId, documentId, count = 5, force = false) => {
+  logger.info('Generating Q&A', { documentId, count, force });
 
-  // Check cache first
+  // Check cache first (skip if force regenerate)
   const cacheKey = `qa:${documentId}:${count}`;
-  const cached = await cacheGet(cacheKey);
-  if (cached) {
-    logger.info('Cache HIT: qa', { documentId, count });
-    return cached;
+  if (!force) {
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+      logger.info('Cache HIT: qa', { documentId, count });
+      return cached;
+    }
   }
 
   const chunks = await getDocumentChunks(documentId, orgId);
