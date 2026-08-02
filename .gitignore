@@ -65,3 +65,4 @@ temp/
 
 # Upload temp files
 uploads/
+*.mjs
