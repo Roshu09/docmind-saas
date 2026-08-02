@@ -64,12 +64,8 @@ export default function Summarize() {
 
   const handleExport = () => {
     if (!summary) return;
-    const safeName = (docName || 'document').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const content = `# Document Summary\n\n## TL;DR\n${summary.tldr}\n\n## Key Points\n${summary.key_points?.map((p,i) => `${i+1}. ${p}`).join('\n')}\n\n## Action Items\n${summary.action_items?.map(a => `- ${a}`).join('\n')}\n\n## Topics\n${summary.topics?.join(', ')}\n\nDifficulty: ${summary.difficulty} | Sentiment: ${summary.sentiment}`;
-    const blob = new Blob([content], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `Summary_${safeName}.md`; a.click();
-    URL.revokeObjectURL(url);
+    const name = docName || 'Document';
+    exportSummaryPdf(name, summary);
   };
 
   return (
