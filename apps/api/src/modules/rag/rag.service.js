@@ -187,3 +187,116 @@ Return this exact structure:
 
   return { ...result, doc_a_name: nameA, doc_b_name: nameB };
 };
+
+// ── Streaming RAG Query ──────────────────────────────────────
+export const ragQueryStream = async (orgId, question, options = {}, onChunk) => {
+  const { documentIds = null, limit = 5 } = options;
+  const searchResult = await search(orgId, question, { limit, documentIds, searchType: 'hybrid' });
+  if (!searchResult.results.length) {
+    onChunk({ type: 'answer', content: 'No relevant documents found. Please upload documents first.' });
+    onChunk({ type: 'done', sources: [], chunks_used: 0 });
+    return;
+  }
+  const context = searchResult.results.map((r, i) => `[${i+1}] ${r.content}`).join('\n\n');
+  const sources = [...new Map(searchResult.results.map(r => [r.document_id, { document_id: r.document_id, original_name: r.original_name }])).values()];
+
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages: [
+        { role: 'system', content: 'You are a helpful AI assistant. Answer based only on the provided context. Be concise and accurate.' },
+        { role: 'user', content: `Context:\n${context}\n\nQuestion: ${question}` },
+      ],
+      max_tokens: 1024,
+      temperature: 0.7,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error?.message || 'Groq API error');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value);
+    const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+    for (const line of lines) {
+      const data = line.slice(6);
+      if (data === '[DONE]') {
+        onChunk({ type: 'done', sources, chunks_used: searchResult.results.length });
+        return;
+      }
+      try {
+        const parsed = JSON.parse(data);
+        const content = parsed.choices[0]?.delta?.content;
+        if (content) onChunk({ type: 'answer', content });
+      } catch {}
+    }
+  }
+};
+
+// ── Streaming Multi-Doc Query ────────────────────────────────
+export const multiDocQueryStream = async (orgId, question, documentIds = [], options = {}, onChunk) => {
+  const { limit = 10 } = options;
+  const searchResult = await search(orgId, question, {
+    limit, documentIds: documentIds.length > 0 ? documentIds : null, searchType: 'hybrid',
+  });
+  if (!searchResult.results.length) {
+    onChunk({ type: 'answer', content: 'No relevant content found in the selected documents.' });
+    onChunk({ type: 'done', sources: [], chunks_used: 0 });
+    return;
+  }
+  const context = searchResult.results.map((r, i) => `[${i+1}] (${r.original_name}): ${r.content}`).join('\n\n');
+  const docNames = [...new Set(searchResult.results.map(r => r.original_name))];
+  const sources = [...new Map(searchResult.results.map(r => [r.document_id, { document_id: r.document_id, original_name: r.original_name }])).values()];
+
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages: [
+        { role: 'system', content: `You are a helpful AI assistant analyzing ${docNames.length} document(s): ${docNames.join(', ')}. Answer clearly and structure your response with sections per document where relevant.` },
+        { role: 'user', content: `Context:\n${context}\n\nQuestion: ${question}` },
+      ],
+      max_tokens: 1024,
+      temperature: 0.7,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error?.message || 'Groq API error');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value);
+    const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+    for (const line of lines) {
+      const data = line.slice(6);
+      if (data === '[DONE]') {
+        onChunk({ type: 'done', sources, chunks_used: searchResult.results.length, documents_searched: docNames.length });
+        return;
+      }
+      try {
+        const parsed = JSON.parse(data);
+        const content = parsed.choices[0]?.delta?.content;
+        if (content) onChunk({ type: 'answer', content });
+      } catch {}
+    }
+  }
+};

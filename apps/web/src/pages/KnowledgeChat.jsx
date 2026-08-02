@@ -5,7 +5,7 @@ import {
   FileText, Sparkles, ChevronRight, Database, MessageSquare
 } from 'lucide-react';
 import { filesApi } from '../api/files';
-import { searchApi } from '../api/search';
+import { searchApi, streamMultiDocQuery } from '../api/search';
 import toast from 'react-hot-toast';
 
 const MAX_DOCS = 5;
@@ -113,7 +113,7 @@ function ChatMessage({ msg, onFollowup }) {
           ${isUser
             ? 'bg-violet-600 text-white text-sm rounded-tr-sm'
             : 'bg-card border border-border text-gray-800 dark:text-foreground rounded-tl-sm'}`}>
-          {isUser ? <p className="text-sm">{msg.text}</p> : <FormattedText text={msg.text} />}
+          {isUser ? <p className="text-sm">{msg.content || msg.text}</p> : <FormattedText text={msg.content || msg.text} />}
         </div>
 
         {/* Context indicator */}
@@ -218,56 +218,53 @@ export default function KnowledgeChat() {
 
   const handleSend = async (question) => {
     const q = (question || input).trim();
-    // Use ref to always get current selected docs
     const currentDocs = selectedDocsRef.current;
     if (!q || isLoading || currentDocs.length === 0) return;
-
-    setInput('');
-    if (!chatStarted) setChatStarted(true);
-
-    const userMsg = { role: 'user', text: q, id: Date.now() };
-    setMessages(prev => [...prev, userMsg]);
-    setIsLoading(true);
-
-    // Capture docIds at time of sending
     const docIds = currentDocs.map(d => d.id);
-    const docCount = currentDocs.length;
-
+    setInput('');
+    setChatStarted(true);
+    setMessages(m => [...m, { role: 'user', content: q }]);
+    let streamedContent = '';
+    setMessages(m => [...m, { role: 'assistant', content: '', streaming: true }]);
+    setIsLoading(true);
     try {
-      const res = await searchApi.multiDocQuery(q, docIds);
-      const { answer, sources, chunks_used } = res.data.data;
-
-      // Only show sources that are in current selected docs
-      const validSources = (sources || []).filter(s => docIds.includes(s.document_id));
-
-      const followups = await generateFollowups(answer, docIds);
-
-      const aiMsg = {
-        role: 'assistant',
-        text: answer,
-        sources: validSources,
-        chunks_used,
-        docs_count: docCount,
-        followups,
-        id: Date.now() + 1,
-      };
-      setMessages(prev => [...prev, aiMsg]);
+      await streamMultiDocQuery(q, docIds, (chunk) => {
+        if (chunk.type === 'answer') {
+          streamedContent += chunk.content;
+          setMessages(m => {
+            const msgs = [...m];
+            const last = msgs[msgs.length - 1];
+            if (last.streaming) last.content = streamedContent;
+            return [...msgs];
+          });
+        } else if (chunk.type === 'done') {
+          setMessages(m => {
+            const msgs = [...m];
+            const last = msgs[msgs.length - 1];
+            if (last.streaming) {
+              last.streaming = false;
+              last.sources = chunk.sources;
+              last.chunks_used = chunk.chunks_used;
+            }
+            return [...msgs];
+          });
+        } else if (chunk.type === 'error') {
+          throw new Error(chunk.message);
+        }
+      });
     } catch (err) {
-      const errMsg = err.response?.data?.message || err.message || '';
-      const isRateLimit = errMsg.toLowerCase().includes('rate limit') || errMsg.toLowerCase().includes('token');
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        text: isRateLimit
-          ? '⏳ Daily AI limit reached. Please wait ~40 mins and try again. (Groq free tier: 100k tokens/day)'
-          : '❌ Something went wrong. Please try again.',
-        sources: [],
-        id: Date.now() + 1,
-      }]);
+      const msg = err.message?.includes('rate') ? 'AI rate limit reached. Please wait and try again.' : 'Failed to get answer. Please try again.';
+      setMessages(m => {
+        const msgs = [...m];
+        const last = msgs[msgs.length - 1];
+        if (last.streaming) { last.content = msg; last.streaming = false; }
+        return [...msgs];
+      });
+      toast.error(msg);
     } finally {
       setIsLoading(false);
-      inputRef.current?.focus();
     }
-  };
+  }
 
   const handleClearChat = () => {
     if (!confirm('Clear chat history?')) return;

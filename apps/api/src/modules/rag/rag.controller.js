@@ -70,3 +70,47 @@ export const compareController = async (req, res) => {
     res.json({ success: true, data: result });
   } catch (err) { handleError(res, err); }
 };
+
+import { ragQueryStream, multiDocQueryStream } from './rag.service.js';
+
+export const ragStreamController = async (req, res) => {
+  const { question, documentIds, limit } = req.body;
+  if (!question?.trim()) return res.status(400).json({ success: false, message: 'Question is required' });
+  
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  try {
+    await ragQueryStream(req.user.orgId, question, { documentIds, limit }, (chunk) => {
+      res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+    });
+    logQuery(req.user.orgId, req.user.id, 'chat');
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`);
+  } finally {
+    res.end();
+  }
+};
+
+export const multiDocStreamController = async (req, res) => {
+  const { question, documentIds = [], limit } = req.body;
+  if (!question?.trim()) return res.status(400).json({ success: false, message: 'Question is required' });
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  try {
+    await multiDocQueryStream(req.user.orgId, question, documentIds, { limit }, (chunk) => {
+      res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+    });
+    logQuery(req.user.orgId, req.user.id, 'knowledge_chat');
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`);
+  } finally {
+    res.end();
+  }
+};

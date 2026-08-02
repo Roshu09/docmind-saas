@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../../middlewares/auth.js';
-import { ragController, summarizeController, generateQAController, multiDocController, compareController } from './rag.controller.js';
+import { ragController, summarizeController, generateQAController, multiDocController, compareController, ragStreamController, multiDocStreamController } from './rag.controller.js';
 const router = Router();
 router.use(authenticate);
 router.post('/query', ragController);
@@ -8,4 +8,6 @@ router.post('/multi-query', multiDocController);
 router.post('/summarize/:documentId', summarizeController);
 router.post('/generate-qa/:documentId', generateQAController);
 router.post('/compare', compareController);
+router.post('/query/stream', ragStreamController);
+router.post('/multi-query/stream', multiDocStreamController);
 export default router;

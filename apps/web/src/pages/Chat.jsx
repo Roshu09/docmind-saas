@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, Bot, User, Loader2, FileText, MessageSquare, Trash2 } from 'lucide-react'
-import { searchApi } from '../api/search'
+import { searchApi, streamRagQuery } from '../api/search'
 import toast from 'react-hot-toast'
 import ReactMarkdown from 'react-markdown'
 
@@ -62,24 +62,97 @@ export default function Chat() {
     const q = input.trim()
     if (!q || loading) return
     if (q.length < 5) return toast.error('Question must be at least 5 characters')
-
     setInput('')
     setMessages(m => [...m, { role: 'user', content: q }])
     setLoading(true)
+    setMessages(m => [...m, { role: 'assistant', content: '', streaming: true }])
 
     try {
-      const { data } = await searchApi.ragQuery(q, { limit: 5 })
-      const res = data.data
-      setMessages(m => [...m, {
-        role: 'assistant',
-        content: res.answer,
-        sources: res.sources,
-        chunks_used: res.chunks_used,
-      }])
+      const token = (() => { try { const r = localStorage.getItem('aifi-auth'); return r ? JSON.parse(r)?.state?.accessToken : null; } catch { return null; } })();
+      const response = await fetch('/api/rag/query/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ question: q, limit: 5 }),
+      });
+
+      if (!response.ok) throw new Error('stream_failed');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let doneData = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines2 = buffer.split('\n');
+        buffer = lines2.pop() || '';
+        for (const line of lines2) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (!data) continue;
+          try {
+            const chunk = JSON.parse(data);
+            if (chunk.type === 'answer') {
+              setMessages(m => {
+                const msgs = [...m];
+                const last = { ...msgs[msgs.length - 1] };
+                last.content = (last.content || '') + chunk.content;
+                msgs[msgs.length - 1] = last;
+                return msgs;
+              });
+            } else if (chunk.type === 'done') {
+              doneData = chunk;
+            }
+          } catch {}
+        }
+      }
+
+      setMessages(m => {
+        const msgs = [...m];
+        const last = { ...msgs[msgs.length - 1] };
+        last.streaming = false;
+        last.sources = doneData?.sources;
+        last.chunks_used = doneData?.chunks_used;
+        msgs[msgs.length - 1] = last;
+        return msgs;
+      });
+
     } catch (err) {
-      const msg = err.response?.data?.message || err.response?.data?.message?.includes('rate') ? '⏳ Daily AI limit reached. Please wait ~40 mins and try again.' : 'AI is unavailable. Please try again.'
-      setMessages(m => [...m, { role: 'assistant', content: `❌ ${msg}` }])
-      toast.error(msg)
+      // Fallback to normal API
+      try {
+        setMessages(m => {
+          const msgs = [...m];
+          const last = { ...msgs[msgs.length - 1] };
+          last.content = 'Thinking...';
+          msgs[msgs.length - 1] = last;
+          return msgs;
+        });
+        const { data } = await searchApi.ragQuery(q, { limit: 5 });
+        const res = data.data;
+        setMessages(m => {
+          const msgs = [...m];
+          const last = { ...msgs[msgs.length - 1] };
+          last.streaming = false;
+          last.content = res.answer;
+          last.sources = res.sources;
+          last.chunks_used = res.chunks_used;
+          msgs[msgs.length - 1] = last;
+          return msgs;
+        });
+      } catch (fallbackErr) {
+        const msg = '❌ AI is unavailable. Please try again.';
+        setMessages(m => {
+          const msgs = [...m];
+          const last = { ...msgs[msgs.length - 1] };
+          last.streaming = false;
+          last.content = msg;
+          msgs[msgs.length - 1] = last;
+          return msgs;
+        });
+        toast.error(msg);
+      }
     } finally {
       setLoading(false)
       inputRef.current?.focus()
