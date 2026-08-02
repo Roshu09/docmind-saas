@@ -31,11 +31,19 @@ export default function Summarize() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
   const [resetAt, setResetAt] = useState(() => localStorage.getItem("groq_reset_at") || null);
+  const [docName, setDocName] = useState('');
 
   useEffect(() => {
     setSummary(null);
     setError(null);
     handleSummarize();
+    // Fetch doc name for export
+    import('../api/files').then(m => {
+      m.filesApi.getDocuments().then(res => {
+        const doc = res.data?.data?.documents?.find(d => d.id === documentId);
+        if (doc) setDocName(doc.original_name?.replace(/.[^/.]+$/, '') || '');
+      }).catch(() => {});
+    });
   }, [documentId]);
 
   const handleSummarize = async (force = false) => {
@@ -56,10 +64,11 @@ export default function Summarize() {
 
   const handleExport = () => {
     if (!summary) return;
+    const safeName = (docName || 'document').replace(/[^a-z0-9]/gi, '_').toLowerCase();
     const content = `# Document Summary\n\n## TL;DR\n${summary.tldr}\n\n## Key Points\n${summary.key_points?.map((p,i) => `${i+1}. ${p}`).join('\n')}\n\n## Action Items\n${summary.action_items?.map(a => `- ${a}`).join('\n')}\n\n## Topics\n${summary.topics?.join(', ')}\n\nDifficulty: ${summary.difficulty} | Sentiment: ${summary.sentiment}`;
     const blob = new Blob([content], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `summary-${documentId}.md`; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = `Summary_${safeName}.md`; a.click();
     URL.revokeObjectURL(url);
   };
 
