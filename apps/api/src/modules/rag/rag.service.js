@@ -1,4 +1,5 @@
 import { query } from '../../config/database.js';
+import { cacheGet, cacheSet } from '../../config/redis.js';
 import { search } from '../search/search.service.js';
 import logger from '../../utils/logger.js';
 
@@ -64,6 +65,14 @@ export const ragQuery = async (orgId, question, options = {}) => {
 export const summarizeDocument = async (orgId, documentId) => {
   logger.info('Summarizing document', { documentId });
 
+  // Check cache first
+  const cacheKey = `summary:${documentId}`;
+  const cached = await cacheGet(cacheKey);
+  if (cached) {
+    logger.info('Cache HIT: summary', { documentId });
+    return cached;
+  }
+
   const chunks = await getDocumentChunks(documentId, orgId);
   if (!chunks.length) throw new Error('No content found for this document');
 
@@ -82,13 +91,25 @@ Return ONLY valid JSON, no markdown.` },
     { role: 'user', content: `Analyze this document:\n\n${content}` },
   ], 1024);
 
-  try { return JSON.parse(summary); }
-  catch { return { tldr: summary, key_points: [], action_items: [], topics: [], sentiment: 'neutral', difficulty: 'intermediate' }; }
+  let result;
+  try { result = JSON.parse(summary); }
+  catch { result = { tldr: summary, key_points: [], action_items: [], topics: [], sentiment: 'neutral', difficulty: 'intermediate' }; }
+  // Cache for 24 hours
+  await cacheSet(cacheKey, result, 86400);
+  return result;
 };
 
 // ── Auto Q&A Generator ───────────────────────────────────────
 export const generateQA = async (orgId, documentId, count = 5) => {
   logger.info('Generating Q&A', { documentId, count });
+
+  // Check cache first
+  const cacheKey = `qa:${documentId}:${count}`;
+  const cached = await cacheGet(cacheKey);
+  if (cached) {
+    logger.info('Cache HIT: qa', { documentId, count });
+    return cached;
+  }
 
   const chunks = await getDocumentChunks(documentId, orgId);
   if (!chunks.length) throw new Error('No content found for this document');
@@ -105,8 +126,12 @@ Return ONLY valid JSON, no markdown.` },
     { role: 'user', content: `Generate ${count} Q&A pairs from:\n\n${content}` },
   ], 2048);
 
-  try { return JSON.parse(result); }
-  catch { return { questions: [] }; }
+  let qaResult;
+  try { qaResult = JSON.parse(result); }
+  catch { qaResult = { questions: [] }; }
+  // Cache for 24 hours
+  await cacheSet(cacheKey, qaResult, 86400);
+  return qaResult;
 };
 
 // ── Multi-doc Chat ───────────────────────────────────────────
