@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BookOpenCheck, Send, X, Loader2, AlertCircle, Trash2,
-  FileText, Sparkles, ChevronRight, Database, MessageSquare
+  FileText, Sparkles, ChevronRight, Database, MessageSquare, Clock, Plus
 } from 'lucide-react';
 import { filesApi } from '../api/files';
+import { chatApi } from '../api/chat';
 import { searchApi, streamMultiDocQuery } from '../api/search';
 import toast from 'react-hot-toast';
 
@@ -157,6 +158,9 @@ export default function KnowledgeChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [docsLoading, setDocsLoading] = useState(true);
   const [showPanel, setShowPanel] = useState(false);
+  const [sessions, setSessions] = useState([]);
+  const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
   const [chatStarted, setChatStarted] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
@@ -275,7 +279,52 @@ export default function KnowledgeChat() {
   const canChat = selectedDocs.length > 0;
 
   return (
-    <div className="flex flex-col h-full max-h-screen">
+    <div className="flex h-full">
+      {/* History Sidebar */}
+      {showHistory && (
+        <div className="w-60 flex-shrink-0 border-r border-border bg-card flex flex-col">
+          <div className="p-3 border-b border-border flex items-center justify-between">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">History</span>
+            <button onClick={() => setShowHistory(false)} className="p-1 hover:bg-secondary rounded-lg transition-colors">
+              <X size={13} className="text-muted-foreground" />
+            </button>
+          </div>
+          <button onClick={() => { setMessages([]); setChatStarted(false); setCurrentSessionId(null); setShowHistory(false); }}
+            className="mx-2 mt-2 flex items-center gap-2 px-3 py-2 bg-violet-600 text-white rounded-xl text-xs font-medium hover:bg-violet-500 transition-colors">
+            <Plus size={13} /> New Chat
+          </button>
+          <div className="flex-1 overflow-y-auto p-2 space-y-1 mt-2">
+            {sessions.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">No history yet</p>
+            ) : sessions.map(s => (
+              <div key={s.id} onClick={async () => {
+                try {
+                  const res = await chatApi.getMessages(s.id);
+                  const msgs = res.data.data || [];
+                  setMessages(msgs.map(m => ({ role: m.role, content: m.content, sources: m.sources || [] })));
+                  setCurrentSessionId(s.id);
+                  setChatStarted(true);
+                  setShowHistory(false);
+                } catch {}
+              }} className="group flex items-start gap-2 p-2 rounded-xl cursor-pointer hover:bg-secondary transition-colors">
+                <MessageSquare size={11} className="text-muted-foreground mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs truncate text-foreground">{s.title}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(s.updated_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</p>
+                </div>
+                <button onClick={async (e) => {
+                  e.stopPropagation();
+                  await chatApi.deleteSession(s.id);
+                  setSessions(prev => prev.filter(x => x.id !== s.id));
+                }} className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all">
+                  <Trash2 size={11} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="flex flex-col flex-1 h-full max-h-screen min-w-0">
 
       {/* Header */}
       <div className="px-6 py-4 border-b border-border bg-card flex items-center justify-between flex-shrink-0">
@@ -285,6 +334,11 @@ export default function KnowledgeChat() {
               className="md:hidden mr-1 p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground border border-border"
               title="Toggle document panel">
               <Database size={16} className="text-violet-500" />
+            </button>
+            <button onClick={() => setShowHistory(h => !h)}
+              className="p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground border border-border mr-1"
+              title="Chat History">
+              <Clock size={15} className="text-violet-500" />
             </button>
             <BookOpenCheck className="w-5 h-5 text-violet-500" />
           </div>
@@ -450,6 +504,7 @@ export default function KnowledgeChat() {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }
