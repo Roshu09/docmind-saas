@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, Loader2, FileText, MessageSquare, Trash2, Plus, Clock, ChevronLeft } from 'lucide-react'
+import { Send, Bot, User, Loader2, FileText, MessageSquare, Trash2, Plus, Clock, History } from 'lucide-react'
 import { searchApi, streamRagQuery } from '../api/search'
 import { chatApi } from '../api/chat'
 import toast from 'react-hot-toast'
@@ -265,8 +265,9 @@ export default function Chat() {
         {/* Header */}
         <div className="px-4 py-3 border-b border-border bg-card flex items-center gap-3">
           <button onClick={() => setShowHistory(h => !h)}
-            className="p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground">
-            <ChevronLeft size={16} className={`transition-transform ${showHistory ? '' : 'rotate-180'}`} />
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${showHistory ? 'bg-violet-500/10 border-violet-500/30 text-violet-600' : 'bg-secondary border-border text-muted-foreground hover:text-foreground'}`}>
+            <History size={13} />
+            <span>History</span>
           </button>
           <Bot size={18} className="text-primary" />
           <h1 className="font-semibold text-sm">AI Chat</h1>
