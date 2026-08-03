@@ -24,7 +24,8 @@ import fileRoutes from './src/modules/files/file.routes.js';
 import searchRoutes from './src/modules/search/search.routes.js';
 import ragRoutes from './src/modules/rag/rag.routes.js';
 import analyticsRoutes from './src/modules/analytics/analytics.routes.js';
-import apiKeysRouter from './src/modules/apikeys/apikeys.routes.js';
+import apiKeysRouter from './src/modules/apikeys/apikeys.routes.js'
+import chatRouter from './src/modules/chat/chat.routes.js';
 
 const app = express();
 
@@ -106,6 +107,7 @@ app.use('/api/search', searchRoutes);  // Phase 5 ✅
 app.use('/api/rag', ragRoutes);        // Phase 5 ✅
 app.use('/api/analytics', analyticsRoutes); // Phase 9 ✅
 app.use('/api/apikeys', apiKeysRouter);      // Phase 11 ✅
+app.use('/api/chat', chatRouter);             // Phase 13 ✅
 
 // Phase 5: Search + RAG routes (coming soon)
 // app.use('/api/search', searchRoutes);

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, Loader2, FileText, MessageSquare, Trash2 } from 'lucide-react'
+import { Send, Bot, User, Loader2, FileText, MessageSquare, Trash2, Plus, Clock, ChevronLeft } from 'lucide-react'
 import { searchApi, streamRagQuery } from '../api/search'
+import { chatApi } from '../api/chat'
 import toast from 'react-hot-toast'
 import ReactMarkdown from 'react-markdown'
 
@@ -19,25 +20,19 @@ function Message({ msg }) {
             : 'bg-card border border-border text-foreground rounded-tl-sm'}`}>
           {isUser ? msg.content : (
             <div className="prose prose-sm dark:prose-invert max-w-none">
-              <ReactMarkdown>{msg.content}</ReactMarkdown>
+              <ReactMarkdown>{msg.content || '...'}</ReactMarkdown>
             </div>
           )}
         </div>
-
-        {/* Sources */}
         {msg.sources && msg.sources.length > 0 && (
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground px-1">Sources used:</p>
+            <p className="text-xs text-muted-foreground px-1">Sources:</p>
             {msg.sources.map((s, i) => (
               <div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground bg-secondary/50 rounded-lg px-2.5 py-1.5">
                 <FileText size={10} /> {s.original_name}
               </div>
             ))}
           </div>
-        )}
-
-        {msg.chunks_used !== undefined && (
-          <p className="text-xs text-muted-foreground px-1">{msg.chunks_used} context chunks used</p>
         )}
       </div>
     </div>
@@ -46,16 +41,59 @@ function Message({ msg }) {
 
 export default function Chat() {
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: "Hi! I'm your AI assistant. Ask me anything about your uploaded documents and I'll answer using the relevant content." }
+    { role: 'assistant', content: "Hi! I'm your AI assistant. Ask me anything about your uploaded documents." }
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [sessions, setSessions] = useState([])
+  const [currentSessionId, setCurrentSessionId] = useState(null)
+  const [showHistory, setShowHistory] = useState(true)
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  useEffect(() => { loadSessions() }, [])
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+
+  const loadSessions = async () => {
+    try {
+      const res = await chatApi.getSessions('chat')
+      setSessions(res.data.data || [])
+    } catch {}
+  }
+
+  const loadSession = async (sessionId) => {
+    try {
+      const res = await chatApi.getMessages(sessionId)
+      const msgs = res.data.data || []
+      setMessages(msgs.map(m => ({
+        role: m.role,
+        content: m.content,
+        sources: m.sources || [],
+        chunks_used: m.chunks_used
+      })))
+      setCurrentSessionId(sessionId)
+    } catch {
+      toast.error('Failed to load chat history')
+    }
+  }
+
+  const startNewChat = () => {
+    setMessages([{ role: 'assistant', content: "Hi! I'm your AI assistant. Ask me anything about your uploaded documents." }])
+    setCurrentSessionId(null)
+    inputRef.current?.focus()
+  }
+
+  const deleteSession = async (e, sessionId) => {
+    e.stopPropagation()
+    try {
+      await chatApi.deleteSession(sessionId)
+      setSessions(s => s.filter(s => s.id !== sessionId))
+      if (currentSessionId === sessionId) startNewChat()
+      toast.success('Chat deleted')
+    } catch {
+      toast.error('Failed to delete chat')
+    }
+  }
 
   const handleSend = async (e) => {
     e?.preventDefault()
@@ -68,90 +106,108 @@ export default function Chat() {
     setMessages(m => [...m, { role: 'assistant', content: '', streaming: true }])
 
     try {
-      const token = (() => { try { const r = localStorage.getItem('aifi-auth'); return r ? JSON.parse(r)?.state?.accessToken : null; } catch { return null; } })();
+      // Create session if new chat
+      let sessionId = currentSessionId
+      if (!sessionId) {
+        const res = await chatApi.createSession(q, 'chat')
+        sessionId = res.data.data.id
+        setCurrentSessionId(sessionId)
+        loadSessions()
+      }
+
+      // Save user message
+      await chatApi.saveMessage(sessionId, 'user', q)
+
+      // Stream response
+      const token = (() => { try { const r = localStorage.getItem('aifi-auth'); return r ? JSON.parse(r)?.state?.accessToken : null } catch { return null } })()
       const response = await fetch('/api/rag/query/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ question: q, limit: 5 }),
-      });
+      })
 
-      if (!response.ok) throw new Error('stream_failed');
+      if (!response.ok) throw new Error('stream_failed')
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let doneData = null;
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let doneData = null
+      let fullContent = ''
 
       while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines2 = buffer.split('\n');
-        buffer = lines2.pop() || '';
-        for (const line of lines2) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim();
-          if (!data) continue;
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6).trim()
+          if (!data) continue
           try {
-            const chunk = JSON.parse(data);
+            const chunk = JSON.parse(data)
             if (chunk.type === 'answer') {
+              fullContent += chunk.content
               setMessages(m => {
-                const msgs = [...m];
-                const last = { ...msgs[msgs.length - 1] };
-                last.content = (last.content || '') + chunk.content;
-                msgs[msgs.length - 1] = last;
-                return msgs;
-              });
+                const msgs = [...m]
+                const last = { ...msgs[msgs.length - 1] }
+                last.content = fullContent
+                msgs[msgs.length - 1] = last
+                return msgs
+              })
             } else if (chunk.type === 'done') {
-              doneData = chunk;
+              doneData = chunk
             }
           } catch {}
         }
       }
 
+      // Finalize message
       setMessages(m => {
-        const msgs = [...m];
-        const last = { ...msgs[msgs.length - 1] };
-        last.streaming = false;
-        last.sources = doneData?.sources;
-        last.chunks_used = doneData?.chunks_used;
-        msgs[msgs.length - 1] = last;
-        return msgs;
-      });
+        const msgs = [...m]
+        const last = { ...msgs[msgs.length - 1] }
+        last.streaming = false
+        last.sources = doneData?.sources || []
+        last.chunks_used = doneData?.chunks_used
+        msgs[msgs.length - 1] = last
+        return msgs
+      })
+
+      // Save assistant message to DB
+      await chatApi.saveMessage(sessionId, 'assistant', fullContent, doneData?.sources || [], doneData?.chunks_used || 0)
 
     } catch (err) {
       // Fallback to normal API
       try {
+        const { data } = await searchApi.ragQuery(q, { limit: 5 })
+        const res = data.data
+        const fullContent = res.answer
+
         setMessages(m => {
-          const msgs = [...m];
-          const last = { ...msgs[msgs.length - 1] };
-          last.content = 'Thinking...';
-          msgs[msgs.length - 1] = last;
-          return msgs;
-        });
-        const { data } = await searchApi.ragQuery(q, { limit: 5 });
-        const res = data.data;
-        setMessages(m => {
-          const msgs = [...m];
-          const last = { ...msgs[msgs.length - 1] };
-          last.streaming = false;
-          last.content = res.answer;
-          last.sources = res.sources;
-          last.chunks_used = res.chunks_used;
-          msgs[msgs.length - 1] = last;
-          return msgs;
-        });
+          const msgs = [...m]
+          const last = { ...msgs[msgs.length - 1] }
+          last.streaming = false
+          last.content = fullContent
+          last.sources = res.sources
+          last.chunks_used = res.chunks_used
+          msgs[msgs.length - 1] = last
+          return msgs
+        })
+
+        if (currentSessionId) {
+          await chatApi.saveMessage(currentSessionId, 'assistant', fullContent, res.sources || [], res.chunks_used || 0)
+        }
       } catch (fallbackErr) {
-        const msg = '❌ AI is unavailable. Please try again.';
+        const msg = '❌ AI is unavailable. Please try again.'
         setMessages(m => {
-          const msgs = [...m];
-          const last = { ...msgs[msgs.length - 1] };
-          last.streaming = false;
-          last.content = msg;
-          msgs[msgs.length - 1] = last;
-          return msgs;
-        });
-        toast.error(msg);
+          const msgs = [...m]
+          const last = { ...msgs[msgs.length - 1] }
+          last.streaming = false
+          last.content = msg
+          msgs[msgs.length - 1] = last
+          return msgs
+        })
+        toast.error(msg)
       }
     } finally {
       setLoading(false)
@@ -159,88 +215,100 @@ export default function Chat() {
     }
   }
 
-  const clearChat = () => {
-    setMessages([{ role: 'assistant', content: "Chat cleared! Ask me anything about your documents." }])
+  const formatTime = (dateStr) => {
+    const d = new Date(dateStr)
+    const now = new Date()
+    const diff = now - d
+    if (diff < 86400000) return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+    if (diff < 604800000) return d.toLocaleDateString('en-IN', { weekday: 'short' })
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
   }
 
-  const suggestions = [
-    "What topics are covered in my documents?",
-    "Summarize the key points",
-    "What does the document say about AI?",
-  ]
-
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card/50">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-            <Bot size={16} className="text-primary-foreground" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold">AI Assistant</p>
-            <p className="text-xs text-muted-foreground">Powered by Groq (llama-3.3-70b) · RAG enabled</p>
-          </div>
+    <div className="flex h-full">
+      {/* History Sidebar */}
+      <div className={`${showHistory ? 'w-64' : 'w-0'} flex-shrink-0 border-r border-border bg-card flex flex-col transition-all duration-300 overflow-hidden`}>
+        <div className="p-3 border-b border-border">
+          <button onClick={startNewChat}
+            className="w-full flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
+            <Plus size={15} /> New Chat
+          </button>
         </div>
-        <button onClick={clearChat} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-lg hover:bg-secondary">
-          <Trash2 size={12} /> Clear chat
-        </button>
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {sessions.length === 0 ? (
+            <div className="text-center py-8">
+              <Clock size={20} className="mx-auto text-muted-foreground mb-2" />
+              <p className="text-xs text-muted-foreground">No chat history yet</p>
+            </div>
+          ) : (
+            sessions.map(session => (
+              <div key={session.id}
+                onClick={() => loadSession(session.id)}
+                className={`group flex items-start gap-2 p-2.5 rounded-xl cursor-pointer transition-colors hover:bg-secondary ${currentSessionId === session.id ? 'bg-secondary' : ''}`}>
+                <MessageSquare size={13} className="text-muted-foreground mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate text-foreground">{session.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{formatTime(session.updated_at)}</p>
+                </div>
+                <button onClick={(e) => deleteSession(e, session.id)}
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all shrink-0">
+                  <Trash2 size={11} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-6 space-y-6">
-        {messages.map((msg, i) => <Message key={i} msg={msg} />)}
-
-        {loading && (
-          <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-full bg-secondary border border-border flex items-center justify-center">
-              <Bot size={14} className="text-muted-foreground" />
-            </div>
-            <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2">
-              <Loader2 size={14} className="animate-spin text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Searching documents and generating answer...</span>
-            </div>
-          </div>
-        )}
-
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Suggestions */}
-      {messages.length === 1 && (
-        <div className="px-6 py-3 flex gap-2 flex-wrap border-t border-border">
-          {suggestions.map((s, i) => (
-            <button key={i} onClick={() => { setInput(s); inputRef.current?.focus() }}
-              className="text-xs px-3 py-1.5 rounded-full border border-border hover:border-primary/50 hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
-              {s}
-            </button>
-          ))}
+      {/* Main Chat */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-border bg-card flex items-center gap-3">
+          <button onClick={() => setShowHistory(h => !h)}
+            className="p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground">
+            <ChevronLeft size={16} className={`transition-transform ${showHistory ? '' : 'rotate-180'}`} />
+          </button>
+          <Bot size={18} className="text-primary" />
+          <h1 className="font-semibold text-sm">AI Chat</h1>
+          {currentSessionId && (
+            <span className="text-xs text-muted-foreground ml-auto">Session active</span>
+          )}
         </div>
-      )}
 
-      {/* Input */}
-      <div className="px-6 py-4 border-t border-border bg-card/50">
-        <form onSubmit={handleSend} className="flex gap-3">
-          <div className="relative flex-1">
-            <MessageSquare size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.map((msg, i) => <Message key={i} msg={msg} />)}
+          {loading && messages[messages.length - 1]?.streaming !== true && (
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-secondary border border-border flex items-center justify-center shrink-0">
+                <Loader2 size={14} className="animate-spin text-muted-foreground" />
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Input */}
+        <div className="p-4 border-t border-border bg-card">
+          <form onSubmit={handleSend} className="flex gap-2 items-end">
+            <textarea
               ref={inputRef}
-              type="text"
               value={input}
               onChange={e => setInput(e.target.value)}
-              placeholder="Ask a question about your documents..."
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+              placeholder="Ask anything about your documents..."
+              rows={1}
               disabled={loading}
-              className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-colors disabled:opacity-50"
+              className="flex-1 resize-none bg-secondary border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 max-h-32"
+              style={{ minHeight: '44px' }}
             />
-          </div>
-          <button type="submit" disabled={loading || !input.trim()}
-            className="p-4 sm:p-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors">
-            <Send size={16} />
-          </button>
-        </form>
-        <p className="text-xs text-muted-foreground mt-2 text-center">
-          AI answers based on your uploaded documents only
-        </p>
+            <button type="submit" disabled={loading || !input.trim()}
+              className="p-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-colors shrink-0">
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+            </button>
+          </form>
+          <p className="text-xs text-muted-foreground mt-2 text-center">AI answers based on your uploaded documents only</p>
+        </div>
       </div>
     </div>
   )
