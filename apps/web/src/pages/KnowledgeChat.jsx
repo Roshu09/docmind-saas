@@ -228,9 +228,24 @@ export default function KnowledgeChat() {
     setInput('');
     setChatStarted(true);
     setMessages(m => [...m, { role: 'user', content: q }]);
-    let streamedContent = '';
     setMessages(m => [...m, { role: 'assistant', content: '', streaming: true }]);
     setIsLoading(true);
+
+    // Create session if needed
+    let sessionId = currentSessionId;
+    if (!sessionId) {
+      try {
+        const res = await chatApi.createSession(q, 'knowledge_chat', docIds);
+        sessionId = res.data.data.id;
+        setCurrentSessionId(sessionId);
+        chatApi.getSessions('knowledge_chat').then(r => setSessions(r.data.data || [])).catch(() => {});
+      } catch {}
+    }
+    // Save user message
+    if (sessionId) { try { await chatApi.saveMessage(sessionId, 'user', q); } catch {} }
+
+    let streamedContent = '';
+    let doneData = null;
     try {
       await streamMultiDocQuery(q, docIds, (chunk) => {
         if (chunk.type === 'answer') {
@@ -242,6 +257,7 @@ export default function KnowledgeChat() {
             return [...msgs];
           });
         } else if (chunk.type === 'done') {
+          doneData = chunk;
           setMessages(m => {
             const msgs = [...m];
             const last = msgs[msgs.length - 1];
@@ -256,6 +272,10 @@ export default function KnowledgeChat() {
           throw new Error(chunk.message);
         }
       });
+      // Save assistant message
+      if (sessionId && streamedContent) {
+        try { await chatApi.saveMessage(sessionId, 'assistant', streamedContent, doneData?.sources || [], doneData?.chunks_used || 0); } catch {}
+      }
     } catch (err) {
       const msg = err.message?.includes('rate') ? 'AI rate limit reached. Please wait and try again.' : 'Failed to get answer. Please try again.';
       setMessages(m => {
@@ -336,9 +356,9 @@ export default function KnowledgeChat() {
               <Database size={16} className="text-violet-500" />
             </button>
             <button onClick={() => setShowHistory(h => !h)}
-              className="p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground border border-border mr-1"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-violet-500/30 bg-violet-500/10 text-violet-600 hover:bg-violet-500/20 transition-colors mr-2"
               title="Chat History">
-              <Clock size={15} className="text-violet-500" />
+              <Clock size={13} /><span className="ml-1 text-xs">History</span>
             </button>
             <BookOpenCheck className="w-5 h-5 text-violet-500" />
           </div>
